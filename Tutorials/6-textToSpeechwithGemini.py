@@ -5,8 +5,8 @@ from RealtimeSTT import AudioToTextRecorder
 from google import genai
 from google.genai import types
 
-from elevenlabs import stream
 from elevenlabs.client import ElevenLabs
+from elevenlabs import play
 
 def main():
     """
@@ -31,7 +31,9 @@ def main():
         
         # Initialize the ElevenLabs client
         # The client automatically uses the ELEVENLABS_API_KEY environment variable
-        elevenlabs_client = ElevenLabs()
+        elevenlabs = ElevenLabs(
+            api_key=os.getenv("ELEVENLABS_API_KEY"),
+        )
         print("Successfully configured Gemini and ElevenLabs.")
     except Exception as e:
         print(f"Error configuring API clients: {e}")
@@ -81,15 +83,14 @@ def main():
             full_response_text = "".join(full_response_chunks).strip()
 
             if full_response_text:
-                # Generate audio stream from the full response text
-                audio_stream = elevenlabs_client.text_to_speech.stream(
+                audio = elevenlabs.text_to_speech.convert(
                     text=full_response_text,
-                    voice="pFZP5JQG7iQjIQuC4Bku", # Example Voice ID
-                    model="eleven_flash_v2_5"
+                    voice_id="pFZP5JQG7iQjIQuC4Bku",
+                    model_id="eleven_flash_v2_5",
+                    output_format="mp3_44100_128",
                 )
                 
-                # Play the audio stream
-                stream(audio_stream)
+                play(audio)
 
         except KeyboardInterrupt:
             print("\nEnding chat. Goodbye!")
