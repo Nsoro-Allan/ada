@@ -44,7 +44,7 @@ CHUNK_SIZE = 1024
 MODEL = "gemini-live-2.5-flash-preview"
 VOICE_ID = 'pFZP5JQG7iQjIQuC4Bku'
 DEFAULT_MODE = "camera"
-MAX_OUTPUT_TOKENS = 50
+MAX_OUTPUT_TOKENS = 100
 
 # --- Initialize Clients ---
 pya = pyaudio.PyAudio()
@@ -61,7 +61,8 @@ class AI_Core(QObject):
     end_of_turn = Signal()
     frame_received = Signal(QImage)
     search_results_received = Signal(list)
-    code_being_executed = Signal(str)
+    # [MODIFIED] Signal now sends code and its result
+    code_being_executed = Signal(str, str)
 
     def __init__(self, video_mode=DEFAULT_MODE):
         super().__init__()
@@ -123,12 +124,12 @@ class AI_Core(QObject):
                 await self.out_queue_gemini.put(gemini_data)
 
     async def receive_text(self):
-        """ [FIXED] Receives text, gathers all tool activity, then emits signals at the end of the turn. """
+        """ Receives text, gathers all tool activity, then emits signals at the end of the turn. """
         while self.is_running:
             try:
                 turn_urls = set()
-                turn_code_emitted = False
-                turn_code_content = "" # Store the code content
+                turn_code_content = ""
+                turn_code_result = ""
 
                 turn = self.session.receive()
                 async for chunk in turn:
@@ -145,15 +146,19 @@ class AI_Core(QObject):
                         model_turn = chunk.server_content.model_turn
                         if model_turn:
                             for part in model_turn.parts:
+                                # [MODIFIED] Capture both code and its result
                                 if part.executable_code is not None:
                                     code = part.executable_code.code
                                     if 'print(' in code or '\n' in code or 'import ' in code:
-                                        if not turn_code_emitted:
-                                            print(f"\n[Ada is executing code...]")
-                                            turn_code_content = code # Store code
-                                            turn_code_emitted = True
+                                        print(f"\n[Ada is executing code...]")
+                                        turn_code_content = code
                                     else:
                                         print(f"\n[Ada is searching for: {code}]")
+                                
+                                if part.code_execution_result is not None:
+                                    print(f"[Code execution result received]")
+                                    turn_code_result = part.code_execution_result.output
+
 
                     # --- Regular Text Response ---
                     if chunk.text:
@@ -161,15 +166,15 @@ class AI_Core(QObject):
                         await self.response_queue_tts.put(chunk.text)
 
                 # --- End-of-turn logic to decide what to display ---
-                if turn_code_emitted:
-                    self.code_being_executed.emit(turn_code_content)
-                    self.search_results_received.emit([]) # Clear search display
+                if turn_code_content:
+                    self.code_being_executed.emit(turn_code_content, turn_code_result)
+                    self.search_results_received.emit([])
                 elif turn_urls:
                     self.search_results_received.emit(list(turn_urls))
-                    self.code_being_executed.emit("") # Clear code display
+                    self.code_being_executed.emit("", "")
                 else: # Neither tool was used, clear both
                     self.search_results_received.emit([])
-                    self.code_being_executed.emit("")
+                    self.code_being_executed.emit("", "")
 
                 self.end_of_turn.emit()
                 await self.response_queue_tts.put(None)
@@ -528,11 +533,10 @@ class MainWindow(QMainWindow):
 
         self.tool_activity_display.setText(html_content)
 
-    @Slot(str)
-    def display_executed_code(self, code):
-        """Displays formatted Python code being executed by the AI."""
+    @Slot(str, str)
+    def display_executed_code(self, code, result):
+        """ [MODIFIED] Displays formatted Python code and its result. """
         if not code:
-            # Only clear if it's currently showing code, not search results
             if "Executing Code" in self.tool_activity_title.text():
                  self.tool_activity_display.clear()
                  self.tool_activity_title.setText("Tool Activity")
@@ -542,8 +546,16 @@ class MainWindow(QMainWindow):
         self.tool_activity_title.setText("Executing Code")
 
         escaped_code = escape(code)
-        # Enhanced styling for the code block
         html_content = f'<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: Consolas, monaco, monospace; color: #D0D0D0; font-size: 9pt; line-height: 1.4;">{escaped_code}</pre>'
+        
+        # Append the result if it exists
+        if result:
+            escaped_result = escape(result.strip())
+            html_content += f"""
+                <p style="color:#A0A0A0; font-weight:bold; margin-top:10px; margin-bottom: 5px; font-family: Inter;">Result:</p>
+                <pre style="white-space: pre-wrap; word-wrap: break-word; font-family: Consolas, monaco, monospace; color: #90EE90; font-size: 9pt;">{escaped_result}</pre>
+            """
+
         self.tool_activity_display.setText(html_content)
 
     @Slot()
