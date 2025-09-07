@@ -9,17 +9,19 @@ import json
 import websockets
 import argparse
 import threading
+from html import escape
 
 # --- PySide6 GUI Imports ---
-from PySide6.QtWidgets import QApplication, QMainWindow, QTextEdit, QLabel, QVBoxLayout, QWidget, QLineEdit, QHBoxLayout
+from PySide6.QtWidgets import (QApplication, QMainWindow, QTextEdit, QLabel,
+                               QVBoxLayout, QWidget, QLineEdit, QHBoxLayout,
+                               QSizePolicy)
 from PySide6.QtCore import QObject, Signal, Slot, Qt
-from PySide6.QtGui import QImage, QPixmap, QTextCursor
+from PySide6.QtGui import QImage, QPixmap, QFont, QFontDatabase
 
 # --- Media and AI Imports ---
 import cv2
 import pyaudio
 import PIL.Image
-import mss
 from google import genai
 from dotenv import load_dotenv
 
@@ -57,7 +59,8 @@ class AI_Core(QObject):
     text_received = Signal(str)
     end_of_turn = Signal()
     frame_received = Signal(QImage)
-    search_results_received = Signal(list)  # Signal to send search URLs
+    search_results_received = Signal(list)
+    code_being_executed = Signal(str)
 
     def __init__(self, video_mode=DEFAULT_MODE):
         super().__init__()
@@ -65,8 +68,7 @@ class AI_Core(QObject):
         self.is_running = True
         self.client = genai.Client(api_key=GEMINI_API_KEY)
         
-        # Add Google Search as a tool
-        tools = [{'google_search': {}}]
+        tools = [{'google_search': {}}, {'code_execution': {}}]
         self.config = {
             "response_modalities": ["TEXT"],
             "system_instruction": "Your name is Ada, which stands for Advanced Design Assistant. You have a joking personality and are an Ai designed to help me with engineering project as well as day to day task. Adress me as Sir and speak in a british accent. Also keep replies precise.",
@@ -116,39 +118,46 @@ class AI_Core(QObject):
                 await self.out_queue_gemini.put(gemini_data)
 
     async def receive_text(self):
-        """ [MODIFIED] Receives text from Gemini, handles tool usage and grounding, and emits signals. """
+        """ Receives text from Gemini, handles tool usage (search & code), and emits signals. """
         while self.is_running:
             try:
-                turn_urls = set()  # Keep track of unique URLs for this turn
+                turn_urls = set()
+                turn_code_emitted = False
 
                 turn = self.session.receive()
                 async for chunk in turn:
-                    # --- MODIFIED: All complex data, including grounding, is in server_content ---
                     if chunk.server_content:
-                        # Check for grounding metadata
-                        if hasattr(chunk.server_content, 'grounding_metadata') and chunk.server_content.grounding_metadata and chunk.server_content.grounding_metadata.grounding_chunks:
+                        # --- Grounding Metadata for Search ---
+                        if hasattr(chunk.server_content, 'grounding_metadata') and chunk.server_content.grounding_metadata:
                             for grounding_chunk in chunk.server_content.grounding_metadata.grounding_chunks:
                                 if grounding_chunk.web and grounding_chunk.web.uri:
                                     turn_urls.add(grounding_chunk.web.uri)
 
-                        # Handle tool usage from the model
+                        # --- Tool Usage (Search & Code Execution) ---
                         model_turn = chunk.server_content.model_turn
                         if model_turn:
                             for part in model_turn.parts:
                                 if part.executable_code is not None:
                                     code = part.executable_code.code
-                                    print(f"\n[Ada is searching for: {code}]")
+                                    if 'print(' in code or '\n' in code or 'import ' in code:
+                                        if not turn_code_emitted: # Emit only once per turn
+                                            print(f"\n[Ada is executing code...]")
+                                            self.code_being_executed.emit(code)
+                                            turn_code_emitted = True
+                                    else:
+                                        print(f"\n[Ada is searching for: {code}]")
 
-                    # Handle regular text responses (this is a top-level attribute)
+                    # --- Regular Text Response ---
                     if chunk.text:
                         self.text_received.emit(chunk.text)
                         await self.response_queue_tts.put(chunk.text)
 
-                # At the end of the turn, emit the collected URLs
                 if turn_urls:
                     self.search_results_received.emit(list(turn_urls))
-                else: # Emit an empty list if no urls were found for this turn
+                elif not turn_code_emitted:
+                    # If no search happened and no code was run, clear the panels
                     self.search_results_received.emit([])
+                    self.code_being_executed.emit("")
 
                 self.end_of_turn.emit()
                 await self.response_queue_tts.put(None)
@@ -184,14 +193,13 @@ class AI_Core(QObject):
                 print(f">>> [INFO] Sending text to AI: '{text}'")
                 for q in [self.response_queue_tts, self.audio_in_queue_player]:
                     while not q.empty(): q.get_nowait()
-                # Use send_client_content for explicit text turns to support tools
                 await self.session.send_client_content(
                     turns=[{"role": "user", "parts": [{"text": text or "."}]}]
                 )
             self.text_input_queue.task_done()
 
     async def tts(self):
-        uri = f"wss://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}/stream-input?model_id=eleven_flash_v2_5&output_format=pcm_24000"
+        uri = f"wss://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}/stream-input?model_id=eleven_turbo_v2_5&output_format=pcm_24000"
         while self.is_running:
             text_chunk = await self.response_queue_tts.get()
             if text_chunk is None or not self.is_running:
@@ -293,8 +301,9 @@ class AI_Core(QObject):
             self.audio_stream.stop_stream()
             self.audio_stream.close()
 
+
 # ==============================================================================
-# GUI APPLICATION
+# STYLED GUI APPLICATION
 # ==============================================================================
 class MainWindow(QMainWindow):
     user_text_submitted = Signal(str)
@@ -302,75 +311,140 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Ada AI Assistant")
-        self.setGeometry(100, 100, 1280, 720)
-        self.setStyleSheet("background-color: #2b2b2b; color: #f0f0f0;")
+        self.setGeometry(100, 100, 1600, 900) # Increased default size
+        self.setMinimumSize(1280, 720)
+
+        # --- Font Setup ---
+        # QFontDatabase.addApplicationFont(":/fonts/Inter-Regular.ttf") # Assumes you have a resources file
+        self.setFont(QFont("Inter", 10))
+
+        # --- Global Stylesheet ---
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #1E1F22;
+            }
+            QWidget#left_panel, QWidget#middle_panel, QWidget#right_panel {
+                background-color: #2B2D30;
+                border-radius: 8px;
+            }
+            QLabel#tool_activity_title {
+                color: #A0A0A0;
+                font-weight: bold;
+                font-size: 11pt;
+                padding: 5px 0px;
+            }
+            QTextEdit#text_display {
+                background-color: #2B2D30;
+                color: #EAEAEA;
+                font-size: 12pt;
+                border: none;
+                padding: 10px;
+            }
+            QLineEdit#input_box {
+                background-color: #1E1F22;
+                color: #EAEAEA;
+                font-size: 11pt;
+                border: 1px solid #4A4C50;
+                border-radius: 8px;
+                padding: 10px;
+            }
+            QLineEdit#input_box:focus {
+                border: 1px solid #007ACC;
+            }
+            QLabel#video_label {
+                border: none;
+                background-color: #1E1F22;
+                border-radius: 6px;
+            }
+            QLabel#tool_activity_display {
+                background-color: #1E1F22;
+                color: #A0A0A0;
+                font-size: 9pt;
+                border: 1px solid #4A4C50;
+                border-radius: 6px;
+                padding: 8px;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: #2B2D30;
+                width: 10px;
+                margin: 0px 0px 0px 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: #4A4C50;
+                min-height: 20px;
+                border-radius: 5px;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: none;
+            }
+        """)
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         
         self.main_layout = QHBoxLayout(self.central_widget)
-        self.main_layout.setContentsMargins(10, 10, 10, 10)
-        self.main_layout.setSpacing(10)
+        self.main_layout.setContentsMargins(15, 15, 15, 15)
+        self.main_layout.setSpacing(15)
 
-        # --- Left Section (Search Sources) ---
+        # --- Left Section (Tool Activity) ---
         self.left_panel = QWidget()
-        self.left_panel.setStyleSheet("background-color: #3c3f41; border-radius: 5px;")
+        self.left_panel.setObjectName("left_panel")
         self.left_layout = QVBoxLayout(self.left_panel)
-        self.left_layout.setContentsMargins(10, 5, 10, 10)
+        self.left_layout.setContentsMargins(15, 10, 15, 15)
 
-        self.sources_title = QLabel("Search Sources")
-        self.sources_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #a9b7c6; padding: 5px; border: none;")
-        self.left_layout.addWidget(self.sources_title)
+        self.tool_activity_title = QLabel("Tool Activity")
+        self.tool_activity_title.setObjectName("tool_activity_title")
+        self.left_layout.addWidget(self.tool_activity_title)
 
-        self.sources_display = QLabel()
-        self.sources_display.setWordWrap(True)
-        self.sources_display.setAlignment(Qt.AlignTop)
-        self.sources_display.setOpenExternalLinks(True) 
-        self.sources_display.setStyleSheet("""
-            QLabel {
-                background-color: #2b2b2b;
-                color: #a9b7c6;
-                font-size: 12px;
-                border: 1px solid #555;
-                border-radius: 5px;
-                padding: 5px;
-            }
-        """)
-        self.left_layout.addWidget(self.sources_display)
+        self.tool_activity_display = QLabel()
+        self.tool_activity_display.setObjectName("tool_activity_display")
+        self.tool_activity_display.setWordWrap(True)
+        self.tool_activity_display.setAlignment(Qt.AlignTop)
+        self.tool_activity_display.setOpenExternalLinks(True)
+        self.tool_activity_display.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        self.left_layout.addWidget(self.tool_activity_display, 1) # Give it stretch factor
         
         # --- Middle Section (Chat) ---
         self.middle_panel = QWidget()
+        self.middle_panel.setObjectName("middle_panel")
         self.middle_layout = QVBoxLayout(self.middle_panel)
+        self.middle_layout.setContentsMargins(0, 0, 0, 15) # Only bottom margin
+        self.middle_layout.setSpacing(15)
 
         self.text_display = QTextEdit()
+        self.text_display.setObjectName("text_display")
         self.text_display.setReadOnly(True)
-        self.text_display.setStyleSheet("""
-            QTextEdit { background-color: #3c3f41; color: #a9b7c6;
-                        font-size: 16px; border: 1px solid #555; border-radius: 5px; }""")
-        self.middle_layout.addWidget(self.text_display)
+        self.middle_layout.addWidget(self.text_display, 1)
 
+        input_container = QWidget()
+        input_layout = QHBoxLayout(input_container)
+        input_layout.setContentsMargins(15, 0, 15, 0)
         self.input_box = QLineEdit()
+        self.input_box.setObjectName("input_box")
         self.input_box.setPlaceholderText("Type your message to Ada here and press Enter...")
-        self.input_box.setStyleSheet("""
-            QLineEdit { background-color: #3c3f41; color: #a9b7c6; font-size: 14px;
-                        border: 1px solid #555; border-radius: 5px; padding: 5px; }""")
         self.input_box.returnPressed.connect(self.send_user_text)
-        self.middle_layout.addWidget(self.input_box)
+        input_layout.addWidget(self.input_box)
+        self.middle_layout.addWidget(input_container)
 
         # --- Right Section (Video) ---
         self.right_panel = QWidget()
-        self.right_panel.setMaximumWidth(500)
+        self.right_panel.setObjectName("right_panel")
         self.right_layout = QVBoxLayout(self.right_panel)
+        self.right_layout.setContentsMargins(15, 15, 15, 15)
         
         self.video_label = QLabel()
-        self.video_label.setStyleSheet("border: 2px solid #555; background-color: black; border-radius: 5px;")
+        self.video_label.setObjectName("video_label")
         self.video_label.setAlignment(Qt.AlignCenter)
+        self.video_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.right_layout.addWidget(self.video_label)
         
-        # Revert stretch factors to prioritize the middle panel.
-        self.main_layout.addWidget(self.left_panel, 1)
-        self.main_layout.addWidget(self.middle_panel, 4)
-        self.main_layout.addWidget(self.right_panel, 2)
+        self.main_layout.addWidget(self.left_panel, 2)
+        self.main_layout.addWidget(self.middle_panel, 5)
+        self.main_layout.addWidget(self.right_panel, 3)
 
         self.is_first_ada_chunk = True
 
@@ -388,6 +462,7 @@ class MainWindow(QMainWindow):
         self.user_text_submitted.connect(self.ai_core.handle_user_text)
         self.ai_core.text_received.connect(self.update_text)
         self.ai_core.search_results_received.connect(self.update_search_results)
+        self.ai_core.code_being_executed.connect(self.display_executed_code)
         self.ai_core.end_of_turn.connect(self.add_newline)
         self.ai_core.frame_received.connect(self.update_frame)
         
@@ -396,62 +471,92 @@ class MainWindow(QMainWindow):
         self.backend_thread.start()
 
     def send_user_text(self):
-        """This function is called when the user presses Enter in the input box."""
+        """Called when the user presses Enter in the input box."""
         text = self.input_box.text().strip()
         if text:
-            self.text_display.append(f"<b style='color:#6DAEED;'>You:</b> {text}")
+            # Use HTML for rich text formatting in the chat log
+            self.text_display.append(f"<p style='color:#0095FF; font-weight:bold;'>You:</p><p style='color:#EAEAEA;'>{escape(text)}</p>")
             self.user_text_submitted.emit(text)
             self.input_box.clear()
 
     @Slot(str)
     def update_text(self, text):
-        """Handles streaming text, ensuring only the prefix is bold."""
+        """Handles streaming text with proper formatting."""
         if self.is_first_ada_chunk:
             self.is_first_ada_chunk = False
-            self.text_display.append(f"<b style='color:#A9B7C6;'>Ada:</b> {text}")
-        else:
-            self.text_display.insertPlainText(text)
+            self.text_display.append(f"<p style='color:#A0A0A0; font-weight:bold;'>Ada:</p>")
+        
+        # Insert text at the end without adding new paragraphs automatically
+        cursor = self.text_display.textCursor()
+        cursor.movePosition(cursor.End)
+        cursor.insertText(text)
         
         self.text_display.verticalScrollBar().setValue(self.text_display.verticalScrollBar().maximum())
 
     @Slot(list)
     def update_search_results(self, urls):
-        """Displays the URLs from Google Search grounding in the left panel."""
-        if not urls:
-             self.sources_display.clear()
-             self.sources_title.setText("Search Sources")
-             return
+        """Displays formatted URLs from Google Search grounding."""
+        # This check ensures we don't clear the panel if code is about to be displayed.
+        if "Executing Code" in self.tool_activity_title.text():
+            return
 
-        # If new URLs are provided, clear the old ones and display the new set.
-        self.sources_display.setText("")
-        self.sources_title.setText("Search Sources Used")
+        if not urls:
+            self.tool_activity_display.clear()
+            self.tool_activity_title.setText("Tool Activity")
+            return
+
+        self.tool_activity_display.clear()
+        self.tool_activity_title.setText("Search Sources")
         
         html_content = ""
         for i, url in enumerate(urls):
             try:
+                # Shorten URL for display
                 display_text = url.split('//')[1].split('/')[0]
             except IndexError:
                 display_text = url
 
-            html_content += f'<p style="margin:0; padding: 3px;">{i+1}. <a href="{url}" style="color: #6DAEED; text-decoration: none;">{display_text}</a></p>'
+            html_content += f'<p style="margin:0; padding: 4px;">{i+1}. <a href="{url}" style="color: #007ACC; text-decoration: none;">{display_text}</a></p>'
 
-        self.sources_display.setText(html_content)
+        self.tool_activity_display.setText(html_content)
+
+    @Slot(str)
+    def display_executed_code(self, code):
+        """Displays formatted Python code being executed by the AI."""
+        if not code:
+            # Only clear if it's currently showing code, not search results
+            if "Executing Code" in self.tool_activity_title.text():
+                 self.tool_activity_display.clear()
+                 self.tool_activity_title.setText("Tool Activity")
+            return
+            
+        self.tool_activity_display.clear()
+        self.tool_activity_title.setText("Executing Code")
+
+        escaped_code = escape(code)
+        # Enhanced styling for the code block
+        html_content = f'<pre style="white-space: pre-wrap; word-wrap: break-word; font-family: Consolas, monaco, monospace; color: #D0D0D0; font-size: 9pt; line-height: 1.4;">{escaped_code}</pre>'
+        self.tool_activity_display.setText(html_content)
 
     @Slot()
     def add_newline(self):
-        """Called at the end of Ada's turn to reset the flag for the next turn."""
+        """Resets the flag for Ada's next turn and adds spacing."""
+        if not self.is_first_ada_chunk: # Only add space if Ada actually spoke
+             self.text_display.append("") # Adds a blank line for spacing
         self.is_first_ada_chunk = True
 
     @Slot(QImage)
     def update_frame(self, image):
-        """Scales the pixmap to the container's width to ensure it fills the space."""
-        pixmap = QPixmap.fromImage(image)
-        scaled_pixmap = pixmap.scaledToWidth(
-            self.right_panel.width(),
-            Qt.TransformationMode.SmoothTransformation
-        )
-        self.video_label.setPixmap(scaled_pixmap)
-        
+        """Scales the pixmap to fit the video label while maintaining aspect ratio."""
+        if not image.isNull():
+            pixmap = QPixmap.fromImage(image)
+            scaled_pixmap = pixmap.scaled(
+                self.video_label.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            self.video_label.setPixmap(scaled_pixmap)
+            
     def closeEvent(self, event):
         print(">>> [INFO] Closing application...")
         self.ai_core.stop()
