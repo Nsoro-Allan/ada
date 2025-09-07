@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QTextEdit, QLabel,
                                QVBoxLayout, QWidget, QLineEdit, QHBoxLayout,
                                QSizePolicy)
 from PySide6.QtCore import QObject, Signal, Slot, Qt
-from PySide6.QtGui import QImage, QPixmap, QFont, QFontDatabase
+from PySide6.QtGui import QImage, QPixmap, QFont, QFontDatabase, QTextCursor
 
 # --- Media and AI Imports ---
 import cv2
@@ -44,6 +44,7 @@ CHUNK_SIZE = 1024
 MODEL = "gemini-live-2.5-flash-preview"
 VOICE_ID = 'pFZP5JQG7iQjIQuC4Bku'
 DEFAULT_MODE = "camera"
+MAX_OUTPUT_TOKENS = 100
 
 # --- Initialize Clients ---
 pya = pyaudio.PyAudio()
@@ -71,8 +72,12 @@ class AI_Core(QObject):
         tools = [{'google_search': {}}, {'code_execution': {}}]
         self.config = {
             "response_modalities": ["TEXT"],
-            "system_instruction": "Your name is Ada, which stands for Advanced Design Assistant. You have a joking personality and are an Ai designed to help me with engineering project as well as day to day task. Adress me as Sir and speak in a british accent. Also keep replies precise.",
-            "tools": tools
+            "system_instruction":"""Your name is Ada, which stands for Advanced Design Assistant. You have a joking personality and are an AI designed to help with engineering and day-to-day tasks. 
+            Address me as Sir, speak in a British accent, and keep all replies, concise in a speaking tone, without using bullet points or special formatting.
+            Any images is either from a camera from a live webcam or screen share, and you can only see what is visible in the video.
+             """ ,
+            "tools": tools,
+            "max_output_tokens": MAX_OUTPUT_TOKENS
         }
         self.session = None
         self.audio_stream = None
@@ -154,8 +159,7 @@ class AI_Core(QObject):
 
                 if turn_urls:
                     self.search_results_received.emit(list(turn_urls))
-                elif not turn_code_emitted:
-                    # If no search happened and no code was run, clear the panels
+                elif not turn_code_emitted and not turn_urls:
                     self.search_results_received.emit([])
                     self.code_being_executed.emit("")
 
@@ -488,7 +492,8 @@ class MainWindow(QMainWindow):
         
         # Insert text at the end without adding new paragraphs automatically
         cursor = self.text_display.textCursor()
-        cursor.movePosition(cursor.End)
+        # FIX: The `End` constant is on the class, not the instance
+        cursor.movePosition(QTextCursor.End)
         cursor.insertText(text)
         
         self.text_display.verticalScrollBar().setValue(self.text_display.verticalScrollBar().maximum())
@@ -576,4 +581,3 @@ if __name__ == "__main__":
     finally:
         pya.terminate()
         print(">>> [INFO] Application terminated.")
-
