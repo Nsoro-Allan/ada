@@ -216,7 +216,7 @@ class AI_Core(QObject):
             self.text_input_queue.task_done()
 
     async def tts(self):
-        uri = f"wss://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}/stream-input?model_id=eleven_turbo_v2_5&output_format=pcm_24000"
+        uri = f"wss://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}/stream-input?model_id=eleven_flash_v2_5&output_format=pcm_24000"
         while self.is_running:
             text_chunk = await self.response_queue_tts.get()
             if text_chunk is None or not self.is_running:
