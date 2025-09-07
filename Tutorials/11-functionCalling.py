@@ -44,7 +44,7 @@ CHUNK_SIZE = 1024
 MODEL = "gemini-live-2.5-flash-preview"
 VOICE_ID = 'pFZP5JQG7iQjIQuC4Bku'
 DEFAULT_MODE = "camera"
-MAX_OUTPUT_TOKENS = 100
+MAX_OUTPUT_TOKENS = 50
 
 # --- Initialize Clients ---
 pya = pyaudio.PyAudio()
@@ -123,17 +123,20 @@ class AI_Core(QObject):
                 await self.out_queue_gemini.put(gemini_data)
 
     async def receive_text(self):
-        """ Receives text from Gemini, handles tool usage (search & code), and emits signals. """
+        """ [FIXED] Receives text, gathers all tool activity, then emits signals at the end of the turn. """
         while self.is_running:
             try:
                 turn_urls = set()
                 turn_code_emitted = False
+                turn_code_content = "" # Store the code content
 
                 turn = self.session.receive()
                 async for chunk in turn:
                     if chunk.server_content:
                         # --- Grounding Metadata for Search ---
-                        if hasattr(chunk.server_content, 'grounding_metadata') and chunk.server_content.grounding_metadata:
+                        if (hasattr(chunk.server_content, 'grounding_metadata') and 
+                            chunk.server_content.grounding_metadata and 
+                            chunk.server_content.grounding_metadata.grounding_chunks):
                             for grounding_chunk in chunk.server_content.grounding_metadata.grounding_chunks:
                                 if grounding_chunk.web and grounding_chunk.web.uri:
                                     turn_urls.add(grounding_chunk.web.uri)
@@ -145,9 +148,9 @@ class AI_Core(QObject):
                                 if part.executable_code is not None:
                                     code = part.executable_code.code
                                     if 'print(' in code or '\n' in code or 'import ' in code:
-                                        if not turn_code_emitted: # Emit only once per turn
+                                        if not turn_code_emitted:
                                             print(f"\n[Ada is executing code...]")
-                                            self.code_being_executed.emit(code)
+                                            turn_code_content = code # Store code
                                             turn_code_emitted = True
                                     else:
                                         print(f"\n[Ada is searching for: {code}]")
@@ -157,9 +160,14 @@ class AI_Core(QObject):
                         self.text_received.emit(chunk.text)
                         await self.response_queue_tts.put(chunk.text)
 
-                if turn_urls:
+                # --- End-of-turn logic to decide what to display ---
+                if turn_code_emitted:
+                    self.code_being_executed.emit(turn_code_content)
+                    self.search_results_received.emit([]) # Clear search display
+                elif turn_urls:
                     self.search_results_received.emit(list(turn_urls))
-                elif not turn_code_emitted and not turn_urls:
+                    self.code_being_executed.emit("") # Clear code display
+                else: # Neither tool was used, clear both
                     self.search_results_received.emit([])
                     self.code_being_executed.emit("")
 
@@ -304,7 +312,6 @@ class AI_Core(QObject):
         if self.audio_stream and self.audio_stream.is_active():
             self.audio_stream.stop_stream()
             self.audio_stream.close()
-
 
 # ==============================================================================
 # STYLED GUI APPLICATION
@@ -492,7 +499,6 @@ class MainWindow(QMainWindow):
         
         # Insert text at the end without adding new paragraphs automatically
         cursor = self.text_display.textCursor()
-        # FIX: The `End` constant is on the class, not the instance
         cursor.movePosition(QTextCursor.End)
         cursor.insertText(text)
         
@@ -501,13 +507,10 @@ class MainWindow(QMainWindow):
     @Slot(list)
     def update_search_results(self, urls):
         """Displays formatted URLs from Google Search grounding."""
-        # This check ensures we don't clear the panel if code is about to be displayed.
-        if "Executing Code" in self.tool_activity_title.text():
-            return
-
         if not urls:
-            self.tool_activity_display.clear()
-            self.tool_activity_title.setText("Tool Activity")
+            if "Search Sources" in self.tool_activity_title.text():
+                self.tool_activity_display.clear()
+                self.tool_activity_title.setText("Tool Activity")
             return
 
         self.tool_activity_display.clear()
@@ -581,3 +584,4 @@ if __name__ == "__main__":
     finally:
         pya.terminate()
         print(">>> [INFO] Application terminated.")
+
