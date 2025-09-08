@@ -10,6 +10,8 @@ import websockets
 import argparse
 import threading
 from html import escape
+import subprocess
+import webbrowser
 
 # --- PySide6 GUI Imports ---
 from PySide6.QtWidgets import (QApplication, QMainWindow, QTextEdit, QLabel,
@@ -128,19 +130,41 @@ class AI_Core(QObject):
                 "required": ["file_path"]
             }
         }
+
+        open_application = {
+            "name": "open_application",
+            "description": "Opens or launches a desktop application on the user's computer.",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "application_name": { "type": "STRING", "description": "The name of the application to open (e.g., 'Notepad', 'Calculator', 'Chrome')."}
+                },
+                "required": ["application_name"]
+            }
+        }
+
+        open_website = {
+            "name": "open_website",
+            "description": "Opens a given URL in the default web browser.",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "url": { "type": "STRING", "description": "The full URL of the website to open (e.g., 'https://www.google.com')."}
+                },
+                "required": ["url"]
+            }
+        }
         
-        tools = [{'google_search': {}}, {'code_execution': {}}, {"function_declarations": [create_folder, create_file, edit_file, list_files, read_file]}]
+        tools = [{'google_search': {}}, {'code_execution': {}}, {"function_declarations": [create_folder, create_file, edit_file, list_files, read_file, open_application, open_website]}]
         
         self.config = {
             "response_modalities": ["TEXT"],
-            "system_instruction": """You have access to tools for searching, code execution, and file system actions.
+            "system_instruction": """You have access to tools for searching, code execution, and system actions.
 1.  For information or questions, use `Google Search`.
 2.  For math or running python code, use `code_execution`.
-3.  If the user asks to create a directory or folder, you must use the `create_folder` function.
-4.  If the user asks to create a file with content, you must use the `create_file` function.
-5.  If the user asks to add to, append, or edit an existing file, you must use the `edit_file` function.
-6.  If the user asks to list files or see what is in a folder, you must use the `list_files` function.
-7.  If the user asks to read a file, you must use the `read_file` function.
+3.  Use file system functions (`create_folder`, `create_file`, `edit_file`, `list_files`, `read_file`) for any file-related tasks.
+4.  If the user asks to open or launch a desktop application, you must use the `open_application` function.
+5.  If the user asks to open a website or a URL, you must use the `open_website` function.
 Prioritize the most appropriate tool for the user's specific request.""",
             "tools": tools,
             "max_output_tokens": MAX_OUTPUT_TOKENS
@@ -185,36 +209,93 @@ Prioritize the most appropriate tool for the user's specific request.""",
     def _list_files(self, directory_path):
         """Lists files and directories at a path and returns a status dictionary."""
         try:
-            # If no path is provided by the model, default to the current directory '.'
             path_to_list = directory_path if directory_path else '.'
-            
-            if not isinstance(path_to_list, str):
-                 return {"status": "error", "message": "Invalid directory path provided."}
-            if not os.path.isdir(path_to_list):
-                 return {"status": "error", "message": f"The path '{path_to_list}' is not a valid directory."}
-            
+            if not isinstance(path_to_list, str): return {"status": "error", "message": "Invalid directory path provided."}
+            if not os.path.isdir(path_to_list): return {"status": "error", "message": f"The path '{path_to_list}' is not a valid directory."}
             files = os.listdir(path_to_list)
-            # Return data to be handled by the main loop.
             return {"status": "success", "message": f"Found {len(files)} items in '{path_to_list}'.", "files": files, "directory_path": path_to_list}
-        except Exception as e:
-            return {"status": "error", "message": f"An error occurred: {str(e)}"}
+        except Exception as e: return {"status": "error", "message": f"An error occurred: {str(e)}"}
 
     def _read_file(self, file_path):
         """Reads the content of a file and returns it in a status dictionary."""
         try:
-            if not file_path or not isinstance(file_path, str):
-                return {"status": "error", "message": "Invalid file path provided."}
-            if not os.path.exists(file_path):
-                return {"status": "error", "message": f"The file '{file_path}' does not exist."}
-            if not os.path.isfile(file_path):
-                return {"status": "error", "message": f"The path '{file_path}' is not a file."}
-
-            with open(file_path, 'r') as f:
-                content = f.read()
-            
+            if not file_path or not isinstance(file_path, str): return {"status": "error", "message": "Invalid file path provided."}
+            if not os.path.exists(file_path): return {"status": "error", "message": f"The file '{file_path}' does not exist."}
+            if not os.path.isfile(file_path): return {"status": "error", "message": f"The path '{file_path}' is not a file."}
+            with open(file_path, 'r') as f: content = f.read()
             return {"status": "success", "message": f"Successfully read the file '{file_path}'.", "content": content}
+        except Exception as e: return {"status": "error", "message": f"An error occurred while reading the file: {str(e)}"}
+
+    def _open_application(self, application_name):
+        """Opens an application using a cross-platform approach with better debugging and special handling for common apps."""
+        print(f">>> [DEBUG] Attempting to open application: '{application_name}'")
+        try:
+            if not application_name or not isinstance(application_name, str):
+                return {"status": "error", "message": "Invalid application name provided."}
+
+            command = []
+            shell_mode = False
+
+            if sys.platform == "win32":
+                lower_app_name = application_name.lower()
+                app_map = {
+                    "calculator": "calc:",
+                    "notepad": "notepad",
+                    "chrome": "chrome",
+                    "google chrome": "chrome",
+                    "firefox": "firefox",
+                    "explorer": "explorer",
+                    "file explorer": "explorer"
+                }
+                app_command = app_map.get(lower_app_name, application_name)
+                command = f"start {app_command}"
+                shell_mode = True
+                print(f">>> [DEBUG] Windows command: '{command}' with shell=True")
+            elif sys.platform == "darwin":  # macOS
+                app_map = {
+                    "calculator": "Calculator",
+                    "chrome": "Google Chrome",
+                    "firefox": "Firefox",
+                    "finder": "Finder",
+                    "textedit": "TextEdit"
+                }
+                app_name = app_map.get(application_name.lower(), application_name)
+                command = ["open", "-a", app_name]
+                print(f">>> [DEBUG] macOS command: {command}")
+            else:  # Linux
+                command = [application_name.lower()]
+                print(f">>> [DEBUG] Linux/Unix command: {command}")
+
+            subprocess.Popen(command, shell=shell_mode)
+            return {"status": "success", "message": f"Successfully launched the command to open '{application_name}'."}
+
+        except FileNotFoundError:
+            error_msg = f"Application '{application_name}' not found. It might not be installed or in your system's PATH."
+            print(f">>> [DEBUG] Error: {error_msg}")
+            return {"status": "error", "message": error_msg}
         except Exception as e:
-            return {"status": "error", "message": f"An error occurred while reading the file: {str(e)}"}
+            error_msg = f"An error occurred: {str(e)}"
+            print(f">>> [DEBUG] Error: {error_msg}")
+            return {"status": "error", "message": error_msg}
+
+    def _open_website(self, url):
+        """Opens a URL in the default web browser."""
+        print(f">>> [DEBUG] Attempting to open URL: '{url}'")
+        try:
+            if not url or not isinstance(url, str):
+                return {"status": "error", "message": "Invalid URL provided."}
+            
+            # Add https:// if it's missing for convenience
+            if not url.startswith(('http://', 'https://')):
+                url = 'https://' + url
+                print(f">>> [DEBUG] Prepended 'https://' to URL: '{url}'")
+
+            webbrowser.open(url)
+            return {"status": "success", "message": f"Successfully opened the website '{url}'."}
+        except Exception as e:
+            error_msg = f"An error occurred while opening the URL: {str(e)}"
+            print(f">>> [DEBUG] Error: {error_msg}")
+            return {"status": "error", "message": error_msg}
 
 
     async def stream_camera_to_gui(self):
@@ -253,7 +334,7 @@ Prioritize the most appropriate tool for the user's specific request.""",
                 turn_urls = set()
                 turn_code_content = ""
                 turn_code_result = ""
-                file_list_data = None # Variable to hold file list data for end-of-turn display
+                file_list_data = None 
 
                 turn = self.session.receive()
                 async for chunk in turn:
@@ -266,22 +347,22 @@ Prioritize the most appropriate tool for the user's specific request.""",
 
                             if fc.name == "create_folder":
                                 result = self._create_folder(folder_path=args.get("folder_path"))
-                                response_for_model = result
                             elif fc.name == "create_file":
                                 result = self._create_file(file_path=args.get("file_path"), content=args.get("content"))
-                                response_for_model = result
                             elif fc.name == "edit_file":
                                 result = self._edit_file(file_path=args.get("file_path"), content=args.get("content"))
-                                response_for_model = result
                             elif fc.name == "list_files":
                                 result = self._list_files(directory_path=args.get("directory_path"))
                                 if result.get("status") == "success":
                                     file_list_data = (result.get("directory_path"), result.get("files"))
-                                response_for_model = result
                             elif fc.name == "read_file":
                                 result = self._read_file(file_path=args.get("file_path"))
-                                response_for_model = result
+                            elif fc.name == "open_application":
+                                result = self._open_application(application_name=args.get("application_name"))
+                            elif fc.name == "open_website":
+                                result = self._open_website(url=args.get("url"))
 
+                            response_for_model = result
                             function_responses.append({"id": fc.id, "name": fc.name, "response": response_for_model})
                         
                         await self.session.send_tool_response(function_responses=function_responses)
@@ -303,7 +384,6 @@ Prioritize the most appropriate tool for the user's specific request.""",
                         self.text_received.emit(chunk.text)
                         await self.response_queue_tts.put(chunk.text)
                 
-                # --- [REFACTORED] End-of-turn display logic with clear priority ---
                 if file_list_data:
                     self.file_list_received.emit(file_list_data[0], file_list_data[1])
                     self.code_being_executed.emit("", "")
@@ -316,7 +396,7 @@ Prioritize the most appropriate tool for the user's specific request.""",
                     self.search_results_received.emit(list(turn_urls))
                     self.code_being_executed.emit("", "")
                     self.file_list_received.emit("", [])
-                else: # No tool was used this turn, clear all displays.
+                else: 
                     self.code_being_executed.emit("","")
                     self.search_results_received.emit([])
                     self.file_list_received.emit("",[])
