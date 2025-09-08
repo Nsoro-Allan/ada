@@ -16,7 +16,7 @@ import webbrowser
 # --- PySide6 GUI Imports ---
 from PySide6.QtWidgets import (QApplication, QMainWindow, QTextEdit, QLabel,
                                QVBoxLayout, QWidget, QLineEdit, QHBoxLayout,
-                               QSizePolicy)
+                               QSizePolicy, QPushButton)
 from PySide6.QtCore import QObject, Signal, Slot, Qt
 from PySide6.QtGui import QImage, QPixmap, QFont, QFontDatabase, QTextCursor
 
@@ -26,6 +26,9 @@ import pyaudio
 import PIL.Image
 from google import genai
 from dotenv import load_dotenv
+from PIL import ImageGrab
+import numpy as np
+
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -157,10 +160,13 @@ class AI_Core(QObject):
         
         tools = [{'google_search': {}}, {'code_execution': {}}, {"function_declarations": [create_folder, create_file, edit_file, list_files, read_file, open_application, open_website]}]
         
+        # --- MODIFIED --- (System instruction updated)
         self.config = {
             "response_modalities": ["TEXT"],
             "system_instruction": """You have access to tools for searching, code execution, and system actions. 
-            The images you are getting are just from a live feed camera ignore them unless the user ask you something specific. Follow these guidelines when choosing tools:
+            The user is providing a live video stream that can be switched between their webcam and their screen. 
+            Be aware of this context when they ask questions about what you are seeing.
+            Follow these guidelines when choosing tools:
             1.  For information or questions, use `Google Search`.
             2.  For math or running python code, use `code_execution`.
             3.  Use file system functions (`create_folder`, `create_file`, `edit_file`, `list_files`, `read_file`) for any file-related tasks.
@@ -271,7 +277,7 @@ class AI_Core(QObject):
             return {"status": "success", "message": f"Successfully launched the command to open '{application_name}'."}
 
         except FileNotFoundError:
-            error_msg = f"Application '{application_name}' not found. It might not be installed or in your system's PATH."
+            error_msg = f"Application '{application_name}' not found. It might not be in your system's PATH."
             print(f">>> [DEBUG] Error: {error_msg}")
             return {"status": "error", "message": error_msg}
         except Exception as e:
@@ -286,7 +292,6 @@ class AI_Core(QObject):
             if not url or not isinstance(url, str):
                 return {"status": "error", "message": "Invalid URL provided."}
             
-            # Add https:// if it's missing for convenience
             if not url.startswith(('http://', 'https://')):
                 url = 'https://' + url
                 print(f">>> [DEBUG] Prepended 'https://' to URL: '{url}'")
@@ -298,22 +303,63 @@ class AI_Core(QObject):
             print(f">>> [DEBUG] Error: {error_msg}")
             return {"status": "error", "message": error_msg}
 
+    @Slot()
+    def switch_video_mode(self):
+        """Switches the video source between 'camera' and 'screen'."""
+        self.video_mode = "screen" if self.video_mode == "camera" else "camera"
+        print(f">>> [INFO] Switched video mode to: {self.video_mode}")
 
-    async def stream_camera_to_gui(self):
-        """Streams camera feed to GUI at high FPS and stores the latest frame."""
-        cap = await asyncio.to_thread(cv2.VideoCapture, 0)
+    async def stream_video_to_gui(self):
+        """Streams camera feed or screen share to GUI and stores the latest frame."""
+        video_capture = None
         while self.is_running:
-            ret, frame = await asyncio.to_thread(cap.read)
-            if not ret:
-                await asyncio.sleep(0.01)
-                continue
-            self.latest_frame = frame
-            h, w, ch = frame.shape
-            bytes_per_line = ch * w
-            qt_image = QImage(frame.data, w, h, bytes_per_line, QImage.Format_BGR888)
-            self.frame_received.emit(qt_image.copy())
-            await asyncio.sleep(0.033)
-        cap.release()
+            frame = None
+            try:
+                if self.video_mode == "camera":
+                    if video_capture is None:
+                        video_capture = await asyncio.to_thread(cv2.VideoCapture, 0)
+                    
+                    if video_capture.isOpened():
+                        ret, frame = await asyncio.to_thread(video_capture.read)
+                        if not ret:
+                            await asyncio.sleep(0.01)
+                            continue
+                
+                elif self.video_mode == "screen":
+                    if video_capture is not None:
+                        await asyncio.to_thread(video_capture.release)
+                        video_capture = None
+                    
+                    screenshot = await asyncio.to_thread(ImageGrab.grab)
+                    frame = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
+
+                else:
+                    if video_capture is not None:
+                        await asyncio.to_thread(video_capture.release)
+                        video_capture = None
+                    await asyncio.sleep(0.1)
+                    continue
+                
+                if frame is not None:
+                    self.latest_frame = frame
+                    h, w, ch = frame.shape
+                    bytes_per_line = ch * w
+                    qt_image = QImage(frame.data, w, h, bytes_per_line, QImage.Format_BGR888)
+                    self.frame_received.emit(qt_image.copy())
+                else:
+                    self.frame_received.emit(QImage())
+
+                await asyncio.sleep(0.033)
+
+            except Exception as e:
+                print(f">>> [ERROR] Video streaming error: {e}")
+                if video_capture is not None:
+                    await asyncio.to_thread(video_capture.release)
+                    video_capture = None
+                await asyncio.sleep(1)
+
+        if video_capture is not None:
+            await asyncio.to_thread(video_capture.release)
 
     async def send_frames_to_gemini(self):
         """Periodically sends the latest frame to Gemini at 1 FPS."""
@@ -380,7 +426,7 @@ class AI_Core(QObject):
                                     turn_code_content = part.executable_code.code
                                 if part.code_execution_result:
                                     turn_code_result = part.code_execution_result.output
-                    
+                        
                     if chunk.text:
                         self.text_received.emit(chunk.text)
                         await self.response_queue_tts.put(chunk.text)
@@ -477,8 +523,8 @@ class AI_Core(QObject):
 
     async def main_task_runner(self, session):
         self.session = session
-        if self.video_mode == "camera":
-            self.tasks.append(asyncio.create_task(self.stream_camera_to_gui()))
+        if self.video_mode == "camera" or self.video_mode == "screen":
+            self.tasks.append(asyncio.create_task(self.stream_video_to_gui()))
             self.tasks.append(asyncio.create_task(self.send_frames_to_gemini()))
         self.tasks.extend([
             asyncio.create_task(self.listen_audio()),
@@ -548,6 +594,9 @@ class MainWindow(QMainWindow):
             QScrollBar::handle:vertical { background: #4A4C50; min-height: 20px; border-radius: 5px; }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }
             QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
+            QPushButton { background-color: #4A4C50; color: #EAEAEA; border: none; padding: 10px; border-radius: 8px; font-size: 10pt; }
+            QPushButton:hover { background-color: #5A5C60; }
+            QPushButton:pressed { background-color: #007ACC; }
         """)
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -590,11 +639,17 @@ class MainWindow(QMainWindow):
         self.right_panel.setObjectName("right_panel")
         self.right_layout = QVBoxLayout(self.right_panel)
         self.right_layout.setContentsMargins(15, 15, 15, 15)
+        self.right_layout.setSpacing(15)
         self.video_label = QLabel()
         self.video_label.setObjectName("video_label")
         self.video_label.setAlignment(Qt.AlignCenter)
         self.video_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.right_layout.addWidget(self.video_label)
+        
+        self.toggle_video_button = QPushButton("Switch to Screen Share")
+        self.toggle_video_button.clicked.connect(self.toggle_video_source)
+        self.right_layout.addWidget(self.toggle_video_button)
+        
         self.main_layout.addWidget(self.left_panel, 2)
         self.main_layout.addWidget(self.middle_panel, 5)
         self.main_layout.addWidget(self.right_panel, 3)
@@ -611,14 +666,28 @@ class MainWindow(QMainWindow):
         self.ai_core.text_received.connect(self.update_text)
         self.ai_core.search_results_received.connect(self.update_search_results)
         self.ai_core.code_being_executed.connect(self.display_executed_code)
-        self.ai_core.file_list_received.connect(self.update_file_list) # Connect new signal
+        self.ai_core.file_list_received.connect(self.update_file_list)
         self.ai_core.end_of_turn.connect(self.add_newline)
         self.ai_core.frame_received.connect(self.update_frame)
         
+        if self.ai_core.video_mode == "screen":
+            self.toggle_video_button.setText("Switch to Camera")
+        else:
+            self.toggle_video_button.setText("Switch to Screen Share")
+
         self.backend_thread = threading.Thread(target=self.ai_core.start_event_loop)
         self.backend_thread.daemon = True
         self.backend_thread.start()
 
+    def toggle_video_source(self):
+        """Calls the backend to switch video mode and updates the button text."""
+        self.ai_core.switch_video_mode()
+        
+        if self.ai_core.video_mode == "screen":
+            self.toggle_video_button.setText("Switch to Camera")
+        else:
+            self.toggle_video_button.setText("Switch to Screen Share")
+            
     def send_user_text(self):
         text = self.input_box.text().strip()
         if text:
@@ -673,7 +742,7 @@ class MainWindow(QMainWindow):
     @Slot(str, list)
     def update_file_list(self, directory_path, files):
         """Displays the list of files in the tool activity panel."""
-        if not directory_path: # Clear the display if the path is empty
+        if not directory_path:
             if "Directory Listing" in self.tool_activity_title.text():
                 self.tool_activity_display.clear()
                 self.tool_activity_title.setText("Tool Activity")
@@ -682,22 +751,19 @@ class MainWindow(QMainWindow):
         self.tool_activity_display.clear()
         self.tool_activity_title.setText("Directory Listing")
         
-        # Display the path being listed
         html_content = f'<p style="color:#A0A0A0; margin-bottom: 5px;">Contents of <strong>{escape(directory_path)}</strong>:</p><hr style="border-color:#4A4C50;">'
         
         if not files:
             html_content += '<p style="margin-top:5px; color:#A0A0A0;"><em>(This directory is empty)</em></p>'
         else:
-            # Sort files and folders separately
             folders = sorted([item for item in files if os.path.isdir(os.path.join(directory_path, item))])
             file_items = sorted([item for item in files if not os.path.isdir(os.path.join(directory_path, item))])
             
-            # Use a list for better formatting
             html_content += '<ul style="list-style-type:none; padding-left: 5px; margin-top: 5px;">'
             for folder in folders:
-                html_content += f'<li style="margin: 2px 0; color: #87CEEB;">&#128193; {escape(folder)}</li>' # Folder icon
+                html_content += f'<li style="margin: 2px 0; color: #87CEEB;">&#128193; {escape(folder)}</li>'
             for file_item in file_items:
-                html_content += f'<li style="margin: 2px 0; color: #EAEAEA;">&#128196; {escape(file_item)}</li>' # File icon
+                html_content += f'<li style="margin: 2px 0; color: #EAEAEA;">&#128196; {escape(file_item)}</li>'
             html_content += '</ul>'
             
         self.tool_activity_display.setText(html_content)
@@ -705,7 +771,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def add_newline(self):
         if not self.is_first_ada_chunk:
-             self.text_display.append("")
+                 self.text_display.append("")
         self.is_first_ada_chunk = True
 
     @Slot(QImage)
@@ -714,6 +780,8 @@ class MainWindow(QMainWindow):
             pixmap = QPixmap.fromImage(image)
             scaled_pixmap = pixmap.scaled(self.video_label.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             self.video_label.setPixmap(scaled_pixmap)
+        else:
+            self.video_label.clear()
             
     def closeEvent(self, event):
         self.ai_core.stop()
@@ -733,4 +801,3 @@ if __name__ == "__main__":
     finally:
         pya.terminate()
         print(">>> [INFO] Application terminated.")
-
