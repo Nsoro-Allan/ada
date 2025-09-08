@@ -159,15 +159,16 @@ class AI_Core(QObject):
         
         self.config = {
             "response_modalities": ["TEXT"],
-            "system_instruction": """You have access to tools for searching, code execution, and system actions.
-1.  For information or questions, use `Google Search`.
-2.  For math or running python code, use `code_execution`.
-3.  Use file system functions (`create_folder`, `create_file`, `edit_file`, `list_files`, `read_file`) for any file-related tasks.
-4.  If the user asks to open or launch a desktop application, you must use the `open_application` function.
-5.  If the user asks to open a website or a URL, you must use the `open_website` function.
-Prioritize the most appropriate tool for the user's specific request.""",
-            "tools": tools,
-            "max_output_tokens": MAX_OUTPUT_TOKENS
+            "system_instruction": """You have access to tools for searching, code execution, and system actions. 
+            The images you are getting are just from a live feed camera ignore them unless the user ask you something specific. Follow these guidelines when choosing tools:
+            1.  For information or questions, use `Google Search`.
+            2.  For math or running python code, use `code_execution`.
+            3.  Use file system functions (`create_folder`, `create_file`, `edit_file`, `list_files`, `read_file`) for any file-related tasks.
+            4.  If the user asks to open or launch a desktop application, you must use the `open_application` function.
+            5.  If the user asks to open a website or a URL, you must use the `open_website` function.
+            Prioritize the most appropriate tool for the user's specific request.""",
+                        "tools": tools,
+                        "max_output_tokens": MAX_OUTPUT_TOKENS
         }
         self.session = None
         self.audio_stream = None
