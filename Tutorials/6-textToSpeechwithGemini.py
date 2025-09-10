@@ -6,7 +6,7 @@ from google import genai
 from google.genai import types
 
 from elevenlabs.client import ElevenLabs
-from elevenlabs import play
+from elevenlabs.play import play
 
 def main():
     """
@@ -104,4 +104,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
