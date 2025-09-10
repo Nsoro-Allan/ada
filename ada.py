@@ -165,7 +165,7 @@ class AI_Core(QObject):
             "response_modalities": ["TEXT"],
             "system_instruction": """You have access to tools for searching, code execution, and system actions. 
             The user is providing a live video stream that can be switched between their webcam and their screen. 
-            Be aware of this context when they ask questions about what you are seeing.
+            Ignore both the webcam and screen content unless the user explicitly asks you to analyze or comment on what you see.
             Follow these guidelines when choosing tools:
             1.  For information or questions, use `Google Search`.
             2.  For math or running python code, use `code_execution`.
