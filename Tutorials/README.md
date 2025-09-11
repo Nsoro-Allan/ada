@@ -46,7 +46,7 @@ ELEVENLABS_API_KEY="YOUR_ELEVENLABS_API_KEY"
 The dependencies required vary by tutorial. For simplicity, you can install all necessary packages at once with a single command.
 
 ```
-pip install google-generativeai python-dotenv RealtimeSTT elevenlabs PySide6 opencv-python Pillow mss websockets
+pip install google-genai python-dotenv RealtimeSTT elevenlabs PySide6 opencv-python Pillow mss websockets
 
 ```
 
