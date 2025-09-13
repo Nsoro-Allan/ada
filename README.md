@@ -44,7 +44,7 @@ Before you begin, ensure you have the following installed:
     
 *   **Gemini API Key**: A key for the **Gemini-live-2.5-flash-preview** model. [Get an API Key](https://www.google.com/search?q=https://ai.google.dev/docs/genai_api_key)
     
-*   **ElevenLabs API Key**: An API key for ElevenLabs Text-to-Speech (TTS). [Get an API Key](https://elevenlabs.io/)
+*   **ElevenLabs API Key**: An API key for ElevenLabs Text-to-Speech (TTS). [Get an API Key (Signing up with this link helps me out)]([https://elevenlabs.io/](https://try.elevenlabs.io/6alaeznm5itg))
     
 
 ### 2\. Create an Anaconda Environment
