@@ -32,98 +32,62 @@ Features
 Setup
 -----
 
-Follow these steps to get A.D.A. up and running on your local machine using the **Anaconda** environment manager.
 Follow these steps to get A.D.A. up and running on your local machine.
 
 ### 1\. Prerequisites
 
 Before you begin, ensure you have the following installed:
 
-*   **Anaconda**: Download and install the Anaconda Distribution for your operating system. [Download Anaconda](https://www.anaconda.com/download)
-    
 *   **Python 3.9+**
 *   **Git**: [Download Git](https://git-scm.com/downloads)
-    
-*   **Gemini API Key**: A key for the **Gemini-live-2.5-flash-preview** model. [Get an API Key](https://www.google.com/search?q=https://ai.google.dev/docs/genai_api_key)
-    
-*   **ElevenLabs API Key**: An API key for ElevenLabs Text-to-Speech (TTS). [Get an API Key (Signing up with this link helps me out)]([https://elevenlabs.io/](https://try.elevenlabs.io/6alaeznm5itg))
-    
 *   **Gemini API Key**: Get your key from [Google AI Studio](https://aistudio.google.com/app/apikey).
 *   **ElevenLabs API Key**: Get your key from the [ElevenLabs website](https://elevenlabs.io/).
 
-### 2\. Create an Anaconda Environment
 ### 2\. Clone the Repository
 
-Open your Anaconda Prompt (on Windows) or terminal (on macOS/Linux). Create a new virtual environment to manage A.D.A.'s dependencies.
 Clone this project's repository from GitHub:
 
-Bash
 ```bash
 git clone https://github.com/your-username/your-repo-name.git
 cd your-repo-name
 ```
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   conda create --name ada-env python=3.10   `
 ### 3\. Create a Virtual Environment
 
-Activate the newly created environment:
 It's highly recommended to use a virtual environment to manage dependencies cleanly.
 
-Bash
 **On Windows:**
 ```bash
 python -m venv venv
 venv\Scripts\activate
 ```
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   conda activate ada-env   `
 **On macOS/Linux:**
 ```bash
 python -m venv venv
 source venv/bin/activate
 ```
 
-### 3\. Clone the Repository
-
-Clone this project's repository from GitHub:
-
-Bash
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   git clone https://github.com/your-username/your-repo-name.git  cd your-repo-name   `
-
 ### 4\. Install Dependencies
 
-With your Anaconda environment active, install all the required Python packages using the following commands.
 With your virtual environment active, install all the required Python packages with a single command:
 
-Bash
 ```bash
 pip install google-genai python-dotenv elevenlabs PySide6 opencv-python Pillow numpy websockets pyaudio
 ```
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   pip install google-genai  pip install python-dotenv  pip install RealtimeSTT  pip install elevenlabs  pip install PySide6  pip install opencv-python  pip install Pillow  pip install mss  pip install websockets   `
 > **Note**: On some systems, `PyAudio` can be tricky to install. If you encounter issues, you may need to install system-level development libraries first (e.g., `portaudio`). Please refer to the PyAudio documentation for platform-specific instructions.
-
-> **Note**: If you encounter issues with PyAudio, you can install it using pip directly. On some Linux distributions, you may need to install development libraries.
 
 ### 5\. Configure API Keys
 
-Create a .env file in the project's root directory to store your API keys securely.
 Create a file named `.env` in the project's root directory to store your API keys securely.
-
-Bash
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   touch .env   `
 
 Add your API keys to the .env file:
 
-Code snippet
 ```
 GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
 ELEVENLABS_API_KEY="YOUR_ELEVENLABS_API_KEY_HERE"
 ```
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"  ELEVENLABS_API_KEY="YOUR_ELEVENLABS_API_KEY_HERE"   `
 
 > **Important**: Do not share or commit your .env file to GitHub. The project's .gitignore file is configured to ignore it.
 
@@ -132,15 +96,11 @@ Usage
 
 ### Running the Application
 
-Ensure your ada-env environment is active, then run the main Python script:
 Ensure your virtual environment is active, then run the main Python script:
 
-Bash
 ```bash
 python ada.py
 ```
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   python main.py   `
 
 ### Command-line Arguments
 
@@ -155,12 +115,9 @@ You can specify the initial video mode when launching the application:
 
 **Example**:
 
-Bash
 ```bash
 python ada.py --mode camera
 ```
-
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   python main.py --mode camera   `
 
 ### Interacting with A.D.A.
 
@@ -172,3 +129,34 @@ Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQL
     
 
 A.D.A. can answer questions, run code, manage files, open applications, and analyze content on your screen.
+
+Troubleshooting
+---------------
+
+If you encounter any issues, here are some common problems and their solutions:
+
+### 1. API Key Errors
+
+*   **Symptom**: The application closes immediately after starting, with an error message like `Error: GEMINI_API_KEY not found`.
+*   **Solution**:
+    1.  **Check `.env` file location**: Ensure your `.env` file is in the root directory of the project, alongside `ada.py`.
+    2.  **Verify Key Names**: Make sure the variable names in your `.env` file are exactly `GEMINI_API_KEY` and `ELEVENLABS_API_KEY`.
+    3.  **Check Key Values**: Confirm that you have correctly pasted your API keys without any extra spaces or characters.
+
+### 2. Microphone Not Working
+
+*   **Symptom**: A.D.A. does not respond to your voice commands.
+*   **Solution**:
+    1.  **Grant Permissions**: Your operating system may be blocking microphone access.
+        *   **Windows**: Go to `Settings > Privacy & security > Microphone` and ensure "Let desktop apps access your microphone" is enabled.
+        *   **macOS**: Go to `System Settings > Privacy & Security > Microphone` and make sure your terminal or code editor has permission.
+    2.  **Set Default Device**: The application uses your system's default input device. Check your OS sound settings to ensure the correct microphone is selected as the default.
+    3.  **PyAudio Installation**: If you see errors related to `PyAudio` or `PortAudio` on startup, you may need to reinstall it or install its system dependencies as mentioned in the setup guide.
+
+### 3. Video Feed Not Displaying
+
+*   **Symptom**: The video panel on the right is black when "WEBCAM" mode is active.
+*   **Solution**:
+    1.  **Grant Permissions**: Just like the microphone, your OS may be blocking camera access. Check your system's privacy settings for the camera.
+    2.  **Camera In Use**: Make sure no other application (like Zoom, Teams, OBS, etc.) is currently using your webcam.
+    3.  **Correct Device**: The script defaults to the first available camera (index 0). If you have multiple cameras, you may need to adjust the `cv2.VideoCapture(0)` line in `ada.py` to use a different index (e.g., `cv2.VideoCapture(1)`).
