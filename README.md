@@ -33,6 +33,7 @@ Setup
 -----
 
 Follow these steps to get A.D.A. up and running on your local machine using the **Anaconda** environment manager.
+Follow these steps to get A.D.A. up and running on your local machine.
 
 ### 1\. Prerequisites
 
@@ -40,26 +41,47 @@ Before you begin, ensure you have the following installed:
 
 *   **Anaconda**: Download and install the Anaconda Distribution for your operating system. [Download Anaconda](https://www.anaconda.com/download)
     
+*   **Python 3.9+**
 *   **Git**: [Download Git](https://git-scm.com/downloads)
     
 *   **Gemini API Key**: A key for the **Gemini-live-2.5-flash-preview** model. [Get an API Key](https://www.google.com/search?q=https://ai.google.dev/docs/genai_api_key)
     
 *   **ElevenLabs API Key**: An API key for ElevenLabs Text-to-Speech (TTS). [Get an API Key](https://elevenlabs.io/)
     
+*   **Gemini API Key**: Get your key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+*   **ElevenLabs API Key**: Get your key from the [ElevenLabs website](https://elevenlabs.io/).
 
 ### 2\. Create an Anaconda Environment
+### 2\. Clone the Repository
 
 Open your Anaconda Prompt (on Windows) or terminal (on macOS/Linux). Create a new virtual environment to manage A.D.A.'s dependencies.
+Clone this project's repository from GitHub:
 
 Bash
+```bash
+git clone https://github.com/your-username/your-repo-name.git
+cd your-repo-name
+```
 
 Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   conda create --name ada-env python=3.10   `
+### 3\. Create a Virtual Environment
 
 Activate the newly created environment:
+It's highly recommended to use a virtual environment to manage dependencies cleanly.
 
 Bash
+**On Windows:**
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
 
 Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   conda activate ada-env   `
+**On macOS/Linux:**
+```bash
+python -m venv venv
+source venv/bin/activate
+```
 
 ### 3\. Clone the Repository
 
@@ -72,16 +94,22 @@ Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQL
 ### 4\. Install Dependencies
 
 With your Anaconda environment active, install all the required Python packages using the following commands.
+With your virtual environment active, install all the required Python packages with a single command:
 
 Bash
+```bash
+pip install google-genai python-dotenv elevenlabs PySide6 opencv-python Pillow numpy websockets pyaudio
+```
 
 Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   pip install google-genai  pip install python-dotenv  pip install RealtimeSTT  pip install elevenlabs  pip install PySide6  pip install opencv-python  pip install Pillow  pip install mss  pip install websockets   `
+> **Note**: On some systems, `PyAudio` can be tricky to install. If you encounter issues, you may need to install system-level development libraries first (e.g., `portaudio`). Please refer to the PyAudio documentation for platform-specific instructions.
 
 > **Note**: If you encounter issues with PyAudio, you can install it using pip directly. On some Linux distributions, you may need to install development libraries.
 
 ### 5\. Configure API Keys
 
 Create a .env file in the project's root directory to store your API keys securely.
+Create a file named `.env` in the project's root directory to store your API keys securely.
 
 Bash
 
@@ -90,6 +118,10 @@ Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQL
 Add your API keys to the .env file:
 
 Code snippet
+```
+GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
+ELEVENLABS_API_KEY="YOUR_ELEVENLABS_API_KEY_HERE"
+```
 
 Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"  ELEVENLABS_API_KEY="YOUR_ELEVENLABS_API_KEY_HERE"   `
 
@@ -101,8 +133,12 @@ Usage
 ### Running the Application
 
 Ensure your ada-env environment is active, then run the main Python script:
+Ensure your virtual environment is active, then run the main Python script:
 
 Bash
+```bash
+python ada.py
+```
 
 Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   python main.py   `
 
@@ -120,6 +156,9 @@ You can specify the initial video mode when launching the application:
 **Example**:
 
 Bash
+```bash
+python ada.py --mode camera
+```
 
 Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   python main.py --mode camera   `
 
