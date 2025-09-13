@@ -41,7 +41,7 @@ Before you begin, ensure you have the following installed:
 *   **Python 3.9+**
 *   **Git**: [Download Git](https://git-scm.com/downloads)
 *   **Gemini API Key**: Get your key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-*   **ElevenLabs API Key**: Get your key from the [ElevenLabs website](https://elevenlabs.io/).
+*   **ElevenLabs API Key**: Get your key from the [ElevenLabs website(Affiliate Link Helps Me Out)](https://try.elevenlabs.io/6alaeznm5itg).
 
 ### 2\. Clone the Repository
 
