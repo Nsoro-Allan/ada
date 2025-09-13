@@ -4,7 +4,7 @@ Advanced Digital Assistant (A.D.A.)
 A.D.A. is an advanced, real-time digital assistant built with Google's **Gemini-live-2.5-flash-preview** model. It features a responsive graphical user interface (GUI) using **PySide6**, real-time audio communication, and the ability to process live video from either a webcam or a screen share. A.D.A. is equipped with powerful tools for searching, code execution, and managing your local file system.
 
   
-
+FOR FULL VIDEO TUTORIAL: https://www.youtube.com/watch?v=aooylKf-PeA
   
 
 Features
