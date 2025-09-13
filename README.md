@@ -32,42 +32,56 @@ Features
 Setup
 -----
 
-Follow these steps to get A.D.A. up and running on your local machine.
+Follow these steps to get A.D.A. up and running on your local machine using the **Anaconda** environment manager.
 
 ### 1\. Prerequisites
 
 Before you begin, ensure you have the following installed:
 
-*   **Python 3.10 or newer**: [Download Python](https://www.python.org/downloads/)
+*   **Anaconda**: Download and install the Anaconda Distribution for your operating system. [Download Anaconda](https://www.anaconda.com/download)
+    
+*   **Git**: [Download Git](https://git-scm.com/downloads)
     
 *   **Gemini API Key**: A key for the **Gemini-live-2.5-flash-preview** model. [Get an API Key](https://www.google.com/search?q=https://ai.google.dev/docs/genai_api_key)
     
 *   **ElevenLabs API Key**: An API key for ElevenLabs Text-to-Speech (TTS). [Get an API Key](https://elevenlabs.io/)
     
-*   **Git**: [Download Git](https://git-scm.com/downloads)
-    
 
-### 2\. Clone the Repository
+### 2\. Create an Anaconda Environment
 
-Open your terminal or command prompt and clone this repository:
+Open your Anaconda Prompt (on Windows) or terminal (on macOS/Linux). Create a new virtual environment to manage A.D.A.'s dependencies.
+
+Bash
+
+Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   conda create --name ada-env python=3.10   `
+
+Activate the newly created environment:
+
+Bash
+
+Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   conda activate ada-env   `
+
+### 3\. Clone the Repository
+
+Clone this project's repository from GitHub:
 
 Bash
 
 Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   git clone https://github.com/your-username/your-repo-name.git  cd your-repo-name   `
 
-### 3\. Install Dependencies
+### 4\. Install Dependencies
 
-Install the required Python packages using pip:
+With your Anaconda environment active, install all the required Python packages using the following commands.
 
 Bash
 
-Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   pip install -r requirements.txt   `
+Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   pip install google-genai  pip install python-dotenv  pip install RealtimeSTT  pip install elevenlabs  pip install PySide6  pip install opencv-python  pip install Pillow  pip install mss  pip install websockets   `
 
-> **Note**: This project relies on pyaudio, which can sometimes be tricky to install. If you encounter issues, refer to the [PyAudio installation guide](https://pypi.org/project/PyAudio/).
+> **Note**: If you encounter issues with PyAudio, you can install it using pip directly. On some Linux distributions, you may need to install development libraries.
 
-### 4\. Configure API Keys
+### 5\. Configure API Keys
 
-Create a .env file in the root directory of the project. This file will store your secret API keys securely.
+Create a .env file in the project's root directory to store your API keys securely.
 
 Bash
 
@@ -79,14 +93,14 @@ Code snippet
 
 Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQLGroovyHTMLJavaJavaScriptJSONJSXKotlinLaTeXLessLuaMakefileMarkdownMATLABMarkupObjective-CPerlPHPPowerShell.propertiesProtocol BuffersPythonRRubySass (Sass)Sass (Scss)SchemeSQLShellSwiftSVGTSXTypeScriptWebAssemblyYAMLXML`   GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"  ELEVENLABS_API_KEY="YOUR_ELEVENLABS_API_KEY_HERE"   `
 
-> **Important**: Do not share your .env file or commit it to GitHub. It's already included in the .gitignore to prevent this.
+> **Important**: Do not share or commit your .env file to GitHub. The project's .gitignore file is configured to ignore it.
 
 Usage
 -----
 
 ### Running the Application
 
-To start A.D.A., run the main Python script from your terminal:
+Ensure your ada-env environment is active, then run the main Python script:
 
 Bash
 
@@ -94,13 +108,13 @@ Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQL
 
 ### Command-line Arguments
 
-You can specify the initial video mode using a command-line argument:
+You can specify the initial video mode when launching the application:
 
-*   \--mode camera: Starts the application with the webcam feed active.
+*   \--mode camera: Starts with the webcam feed active.
     
-*   \--mode screen: Starts the application with screen sharing active.
+*   \--mode screen: Starts with screen sharing active.
     
-*   \--mode none: Starts the application without any video feed (this is the default).
+*   \--mode none: Starts without a video feed (default).
     
 
 **Example**:
@@ -111,33 +125,11 @@ Plain textANTLR4BashCC#CSSCoffeeScriptCMakeDartDjangoDockerEJSErlangGitGoGraphQL
 
 ### Interacting with A.D.A.
 
-*   **Voice**: The application listens for your voice in real-time. Simply start speaking to interact with the assistant.
+*   **Voice**: The application listens in real-time. Simply speak to the assistant to begin a conversation.
     
-*   **Text**: You can also type commands into the input box at the bottom of the screen.
+*   **Text**: Use the input box to type commands or questions.
     
-*   **Video Mode Buttons**: Use the "WEBCAM", "SCREEN", and "OFFLINE" buttons on the right panel to switch between video input modes.
-    
-
-### A.D.A.'s Capabilities
-
-*   **Ask questions**: "Who won the last Super Bowl?"
-    
-*   **Run code**: "Execute a Python script that prints 'Hello, World!' to the console."
-    
-*   **Manage files**: "Create a folder named project\_alpha and a file inside it called notes.txt with the text 'My project notes'."
-    
-*   **Open applications**: "Open Notepad."
-    
-*   **Analyze the screen**: "What is currently displayed on my screen?"
+*   **Video Mode Buttons**: Use the "WEBCAM", "SCREEN", and "OFFLINE" buttons on the right panel to change the visual input source.
     
 
-Troubleshooting
----------------
-
-*   **"Error: GEMINI\_API\_KEY not found"**: Make sure you have created the .env file and correctly entered your GEMINI\_API\_KEY without any extra spaces or quotes.
-    
-*   **Audio issues**: Ensure your microphone is properly connected and configured as the default input device in your system settings.
-    
-*   **GUI not launching**: Verify that PySide6 is installed correctly. Try reinstalling with pip install --force-reinstall PySide6.
-    
-*   **Live video feed not working**: Check that your webcam drivers are up to date and that other applications are not using the camera. For screen share, ensure the application has the necessary permissions.
+A.D.A. can answer questions, run code, manage files, open applications, and analyze content on your screen.
