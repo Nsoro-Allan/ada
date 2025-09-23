@@ -39,10 +39,10 @@ load_dotenv()
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-if not GEMINI_API_KEY:
-    sys.exit("Error: GEMINI_API_KEY not found. Please set it in your .env file.")
 if not ELEVENLABS_API_KEY:
     sys.exit("Error: ELEVENLABS_API_KEY not found. Please check your .env file.")
+if not GEMINI_API_KEY:
+    sys.exit("Error: GEMINI_API_KEY not found. Please set it in your .env file.")
 
 # --- Configuration ---
 FORMAT = pyaudio.paInt16
