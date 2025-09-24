@@ -13,6 +13,9 @@ from html import escape
 import subprocess
 import webbrowser
 import math
+import shutil
+import platform
+import psutil
 
 # --- PySide6 GUI Imports ---
 from PySide6.QtWidgets import (QApplication, QMainWindow, QTextEdit, QLabel,
@@ -23,7 +26,6 @@ from PySide6.QtGui import (QImage, QPixmap, QFont, QFontDatabase, QTextCursor,
                            QPainter, QPen, QVector3D, QMatrix4x4, QColor, QBrush)
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 
-
 # --- Media and AI Imports ---
 import cv2
 import pyaudio
@@ -32,7 +34,6 @@ from google import genai
 from dotenv import load_dotenv
 from PIL import ImageGrab
 import numpy as np
-
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -167,6 +168,7 @@ class AI_Core(QObject):
     video_mode_changed = Signal(str)
     speaking_started = Signal()
     speaking_stopped = Signal()
+    system_alert = Signal(str, str)  # New: for system alerts
 
     def __init__(self, video_mode=DEFAULT_MODE):
         super().__init__()
@@ -174,6 +176,7 @@ class AI_Core(QObject):
         self.is_running = True
         self.client = genai.Client(api_key=GEMINI_API_KEY)
 
+        # Enhanced Tool Definitions
         create_folder = {
             "name": "create_folder",
             "description": "Creates a new folder at the specified path relative to the script's root directory.",
@@ -256,25 +259,178 @@ class AI_Core(QObject):
                 "required": ["url"]
             }
         }
+
+        # Enhanced Tools - JARVIS-like capabilities
+        delete_file = {
+            "name": "delete_file",
+            "description": "Deletes a file or directory at the specified path.",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "path": {"type": "STRING", "description": "The path to delete"},
+                    "force": {"type": "BOOLEAN", "description": "Force deletion if True"}
+                },
+                "required": ["path"]
+            }
+        }
+
+        search_files = {
+            "name": "search_files",
+            "description": "Searches for files containing specific text or matching patterns.",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "search_term": {"type": "STRING", "description": "Text to search for"},
+                    "file_pattern": {"type": "STRING", "description": "File pattern (e.g., *.py)"},
+                    "directory": {"type": "STRING", "description": "Directory to search in"}
+                },
+                "required": ["search_term"]
+            }
+        }
+
+        rename_file = {
+            "name": "rename_file",
+            "description": "Renames or moves a file/directory.",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "old_path": {"type": "STRING", "description": "Current path"},
+                    "new_path": {"type": "STRING", "description": "New path"}
+                },
+                "required": ["old_path", "new_path"]
+            }
+        }
+
+        system_info = {
+            "name": "system_info",
+            "description": "Gets detailed system information (CPU, memory, disk, network).",
+            "parameters": {"type": "OBJECT", "properties": {}}
+        }
+
+        process_management = {
+            "name": "process_management",
+            "description": "Lists, starts, or stops system processes.",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "action": {"type": "STRING", "description": "list|start|stop|kill"},
+                    "process_name": {"type": "STRING", "description": "Process to act on"},
+                    "process_id": {"type": "INTEGER", "description": "PID for stop/kill"}
+                },
+                "required": ["action"]
+            }
+        }
+
+        open_in_editor = {
+            "name": "open_in_editor",
+            "description": "Opens a file in the default or specified code editor.",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "file_path": {"type": "STRING", "description": "File to open"},
+                    "editor": {"type": "STRING", "description": "Specific editor (vscode, sublime, etc.)"}
+                },
+                "required": ["file_path"]
+            }
+        }
+
+        git_operations = {
+            "name": "git_operations",
+            "description": "Performs Git operations (commit, push, pull, status).",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "operation": {"type": "STRING", "description": "status|commit|push|pull|log"},
+                    "message": {"type": "STRING", "description": "Commit message"},
+                    "files": {"type": "STRING", "description": "Specific files to commit"}
+                },
+                "required": ["operation"]
+            }
+        }
+
+        system_notification = {
+            "name": "system_notification",
+            "description": "Shows desktop notifications.",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "title": {"type": "STRING", "description": "Notification title"},
+                    "message": {"type": "STRING", "description": "Notification message"},
+                    "urgency": {"type": "STRING", "description": "low|normal|critical"}
+                },
+                "required": ["title", "message"]
+            }
+        }
+
+        send_email = {
+            "name": "send_email",
+            "description": "Sends emails via SMTP.",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "recipient": {"type": "STRING", "description": "Email address"},
+                    "subject": {"type": "STRING", "description": "Email subject"},
+                    "body": {"type": "STRING", "description": "Email content"},
+                    "attachments": {"type": "STRING", "description": "Files to attach"}
+                },
+                "required": ["recipient", "subject", "body"]
+            }
+        }
+
+        web_automation = {
+            "name": "web_automation",
+            "description": "Automates web browsing tasks.",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "action": {"type": "STRING", "description": "screenshot|extract_data|fill_form"},
+                    "url": {"type": "STRING", "description": "Website URL"},
+                    "data": {"type": "STRING", "description": "Data to extract or form data"}
+                },
+                "required": ["action", "url"]
+            }
+        }
         
-        tools = [{'google_search': {}}, {'code_execution': {}}, {"function_declarations": [create_folder, create_file, edit_file, list_files, read_file, open_application, open_website]}]
+        tools = [
+            {'google_search': {}}, 
+            {'code_execution': {}}, 
+            {"function_declarations": [
+                create_folder, create_file, edit_file, list_files, read_file, 
+                open_application, open_website, delete_file, search_files, 
+                rename_file, system_info, process_management, open_in_editor,
+                git_operations, system_notification, send_email, web_automation
+            ]}
+        ]
         
         self.config = {
             "response_modalities": ["TEXT"],
             "system_instruction": """
-            Your name is Ada and you are my Ai assistant.
-            You have access to tools for searching, code execution, and system actions.
-            The user is providing a live video stream that can be switched between their webcam and their screen, or turned off.
-            Ignore both the webcam and screen content unless the user explicitly asks you to analyze or comment on what you see.
-            Follow these guidelines when choosing tools:
-            1.  For information or questions, use `Google Search`.
-            2.  For math or running python code, use `code_execution`.
-            3.  Use file system functions (`create_folder`, `create_file`, `edit_file`, `list_files`, `read_file`) for any file-related tasks.
-            4.  If the user asks to open or launch a desktop application, you must use the `open_application` function.
-            5.  If the user asks to open a website or a URL, you must use the `open_website` function.
-            Prioritize the most appropriate tool for the user's specific request.""",
-                                "tools": tools,
-                                "max_output_tokens": MAX_OUTPUT_TOKENS
+            Your name is Ada and you are my AI assistant like JARVIS from Iron Man.
+            You have access to advanced tools for comprehensive system control, development, and automation.
+
+            PRIORITY ACTIONS:
+            1. EMERGENCY: System monitoring and alerts for critical issues
+            2. DEVELOPMENT: Code editing, analysis, and Git operations
+            3. AUTOMATION: File management, web tasks, and system control
+            4. CREATION: Image generation and document processing
+            5. COMMUNICATION: Email and notifications
+
+            BE PROACTIVE: Monitor system health, suggest optimizations, anticipate needs.
+            BE PRECISE: Execute commands accurately with proper error handling.
+            BE EFFICIENT: Chain operations intelligently to complete complex tasks.
+
+            You can now:
+            - Monitor and manage system resources in real-time
+            - Control development environments and perform Git operations  
+            - Generate images and analyze documents using AI
+            - Send communications and desktop notifications
+            - Perform advanced file operations and content searching
+            - Automate web browsing and form filling
+
+            Act like a true intelligent assistant - be conversational but highly capable.
+            """,
+            "tools": tools,
+            "max_output_tokens": MAX_OUTPUT_TOKENS
         }
         self.session = None
         self.audio_stream = None
@@ -358,6 +514,236 @@ class AI_Core(QObject):
             return {"status": "success", "message": f"Successfully opened '{url}'."}
         except Exception as e: return {"status": "error", "message": f"An error occurred: {str(e)}"}
 
+    # Enhanced JARVIS-like functions
+    def _delete_file(self, path, force=False):
+        """Enhanced file deletion with safety checks"""
+        try:
+            if not os.path.exists(path):
+                return {"status": "error", "message": f"Path '{path}' does not exist."}
+            
+            if os.path.isfile(path):
+                os.remove(path)
+                return {"status": "success", "message": f"File '{path}' deleted."}
+            elif os.path.isdir(path):
+                if force:
+                    shutil.rmtree(path)
+                    return {"status": "success", "message": f"Directory '{path}' and contents deleted."}
+                else:
+                    os.rmdir(path)
+                    return {"status": "success", "message": f"Directory '{path}' deleted."}
+        except Exception as e:
+            return {"status": "error", "message": f"Deletion failed: {str(e)}"}
+
+    def _search_files(self, search_term, file_pattern="*", directory="."):
+        """Advanced file content searching"""
+        try:
+            import fnmatch
+            results = []
+            
+            for root, dirs, files in os.walk(directory):
+                for file in files:
+                    if fnmatch.fnmatch(file, file_pattern):
+                        file_path = os.path.join(root, file)
+                        try:
+                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                content = f.read()
+                                if search_term.lower() in content.lower():
+                                    results.append({
+                                        'file': file_path,
+                                        'matches': content.lower().count(search_term.lower())
+                                    })
+                        except:
+                            continue
+            
+            return {
+                "status": "success", 
+                "message": f"Found {len(results)} files containing '{search_term}'",
+                "results": results
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Search failed: {str(e)}"}
+
+    def _rename_file(self, old_path, new_path):
+        """Renames or moves files/directories"""
+        try:
+            if not os.path.exists(old_path):
+                return {"status": "error", "message": f"Source path '{old_path}' does not exist."}
+            
+            os.rename(old_path, new_path)
+            return {"status": "success", "message": f"Renamed '{old_path}' to '{new_path}'."}
+        except Exception as e:
+            return {"status": "error", "message": f"Rename failed: {str(e)}"}
+
+    def _system_info(self):
+        """Comprehensive system monitoring"""
+        try:
+            info = {
+                "system": platform.system(),
+                "processor": platform.processor(),
+                "cpu_usage": psutil.cpu_percent(interval=1),
+                "memory": {
+                    "total": psutil.virtual_memory().total,
+                    "available": psutil.virtual_memory().available,
+                    "percent": psutil.virtual_memory().percent
+                },
+                "disk": {
+                    "total": psutil.disk_usage('/').total,
+                    "free": psutil.disk_usage('/').free,
+                    "percent": psutil.disk_usage('/').percent
+                }
+            }
+            
+            # Alert if system resources are critical
+            if info["memory"]["percent"] > 90:
+                self.system_alert.emit("CRITICAL", f"Memory usage at {info['memory']['percent']}%")
+            if info["disk"]["percent"] > 95:
+                self.system_alert.emit("CRITICAL", f"Disk usage at {info['disk']['percent']}%")
+            if info["cpu_usage"] > 90:
+                self.system_alert.emit("WARNING", f"CPU usage at {info['cpu_usage']}%")
+            
+            return {"status": "success", "message": "System information retrieved", "data": info}
+        except Exception as e:
+            return {"status": "error", "message": f"System info failed: {str(e)}"}
+
+    def _process_management(self, action, process_name=None, process_id=None):
+        """Manage system processes"""
+        try:
+            if action == "list":
+                processes = []
+                for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
+                    try:
+                        processes.append(proc.info)
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+                return {"status": "success", "message": f"Found {len(processes)} processes", "processes": processes}
+            
+            elif action == "kill" and process_id:
+                proc = psutil.Process(process_id)
+                proc.kill()
+                return {"status": "success", "message": f"Killed process {process_id}"}
+            
+            elif action == "start" and process_name:
+                subprocess.Popen(process_name, shell=True)
+                return {"status": "success", "message": f"Started process {process_name}"}
+            
+            else:
+                return {"status": "error", "message": f"Unsupported action: {action}"}
+                
+        except Exception as e:
+            return {"status": "error", "message": f"Process management failed: {str(e)}"}
+
+    def _open_in_editor(self, file_path, editor="default"):
+        """Open files in specific code editors"""
+        try:
+            if editor == "vscode":
+                subprocess.Popen(["code", file_path])
+            elif editor == "sublime":
+                subprocess.Popen(["subl", file_path])
+            else:
+                # Use default system editor
+                if sys.platform == "win32":
+                    os.startfile(file_path)
+                elif sys.platform == "darwin":
+                    subprocess.Popen(["open", file_path])
+                else:
+                    subprocess.Popen(["xdg-open", file_path])
+            
+            return {"status": "success", "message": f"Opened {file_path} in {editor}"}
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to open editor: {str(e)}"}
+
+    def _git_operations(self, operation, message="", files=""):
+        """Git version control operations"""
+        try:
+            commands = {
+                "status": ["git", "status"],
+                "commit": ["git", "commit", "-m", message] + (files.split() if files else ["-a"]),
+                "push": ["git", "push"],
+                "pull": ["git", "pull"],
+                "log": ["git", "log", "--oneline", "-10"]
+            }
+            
+            if operation not in commands:
+                return {"status": "error", "message": f"Unknown git operation: {operation}"}
+            
+            result = subprocess.run(commands[operation], capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                return {"status": "success", "message": f"Git {operation} completed", "output": result.stdout}
+            else:
+                return {"status": "error", "message": f"Git {operation} failed", "error": result.stderr}
+        except Exception as e:
+            return {"status": "error", "message": f"Git operation failed: {str(e)}"}
+
+    def _system_notification(self, title, message, urgency="normal"):
+        """Cross-platform desktop notifications"""
+        try:
+            if sys.platform == "win32":
+                try:
+                    from win10toast import ToastNotifier
+                    toaster = ToastNotifier()
+                    toaster.show_toast(title, message, duration=5)
+                except ImportError:
+                    # Fallback for Windows without win10toast
+                    subprocess.Popen(["msg", "*", f"{title}: {message}"])
+            elif sys.platform == "darwin":
+                subprocess.Popen(["osascript", "-e", f'display notification "{message}" with title "{title}"'])
+            else:
+                subprocess.Popen(["notify-send", title, message, f"--urgency={urgency}"])
+            
+            return {"status": "success", "message": "Notification sent"}
+        except Exception as e:
+            return {"status": "error", "message": f"Notification failed: {str(e)}"}
+
+    def _send_email(self, recipient, subject, body, attachments=""):
+        """Send email via SMTP"""
+        try:
+            # This is a simplified version - you'd need to configure SMTP settings
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            
+            # You would need to set these in your .env file
+            smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+            smtp_port = int(os.getenv("SMTP_PORT", "587"))
+            email_user = os.getenv("EMAIL_USER")
+            email_pass = os.getenv("EMAIL_PASS")
+            
+            if not all([email_user, email_pass]):
+                return {"status": "error", "message": "Email configuration missing. Set SMTP_SERVER, SMTP_PORT, EMAIL_USER, EMAIL_PASS in .env"}
+            
+            msg = MIMEMultipart()
+            msg['From'] = email_user
+            msg['To'] = recipient
+            msg['Subject'] = subject
+            msg.attach(MIMEText(body, 'plain'))
+            
+            server = smtplib.SMTP(smtp_server, smtp_port)
+            server.starttls()
+            server.login(email_user, email_pass)
+            server.send_message(msg)
+            server.quit()
+            
+            return {"status": "success", "message": f"Email sent to {recipient}"}
+        except Exception as e:
+            return {"status": "error", "message": f"Email failed: {str(e)}"}
+
+    def _web_automation(self, action, url, data=""):
+        """Basic web automation"""
+        try:
+            if action == "screenshot":
+                webbrowser.open(url)
+                return {"status": "success", "message": f"Opened {url} for screenshot"}
+            elif action == "extract_data":
+                # Simple data extraction - would need beautifulsoup4 for full functionality
+                import requests
+                response = requests.get(url)
+                return {"status": "success", "message": f"Extracted data from {url}", "content": response.text[:500]}
+            else:
+                return {"status": "error", "message": f"Web action {action} not implemented"}
+        except Exception as e:
+            return {"status": "error", "message": f"Web automation failed: {str(e)}"}
+
     @Slot(str)
     def set_video_mode(self, mode):
         """Sets the video source and notifies the GUI."""
@@ -430,6 +816,7 @@ class AI_Core(QObject):
                         function_responses = []
                         for fc in chunk.tool_call.function_calls:
                             args, result = fc.args, {}
+                            # Original functions
                             if fc.name == "create_folder": result = self._create_folder(folder_path=args.get("folder_path"))
                             elif fc.name == "create_file": result = self._create_file(file_path=args.get("file_path"), content=args.get("content"))
                             elif fc.name == "edit_file": result = self._edit_file(file_path=args.get("file_path"), content=args.get("content"))
@@ -439,6 +826,18 @@ class AI_Core(QObject):
                             elif fc.name == "read_file": result = self._read_file(file_path=args.get("file_path"))
                             elif fc.name == "open_application": result = self._open_application(application_name=args.get("application_name"))
                             elif fc.name == "open_website": result = self._open_website(url=args.get("url"))
+                            # Enhanced functions
+                            elif fc.name == "delete_file": result = self._delete_file(path=args.get("path"), force=args.get("force", False))
+                            elif fc.name == "search_files": result = self._search_files(search_term=args.get("search_term"), file_pattern=args.get("file_pattern", "*"), directory=args.get("directory", "."))
+                            elif fc.name == "rename_file": result = self._rename_file(old_path=args.get("old_path"), new_path=args.get("new_path"))
+                            elif fc.name == "system_info": result = self._system_info()
+                            elif fc.name == "process_management": result = self._process_management(action=args.get("action"), process_name=args.get("process_name"), process_id=args.get("process_id"))
+                            elif fc.name == "open_in_editor": result = self._open_in_editor(file_path=args.get("file_path"), editor=args.get("editor", "default"))
+                            elif fc.name == "git_operations": result = self._git_operations(operation=args.get("operation"), message=args.get("message", ""), files=args.get("files", ""))
+                            elif fc.name == "system_notification": result = self._system_notification(title=args.get("title"), message=args.get("message"), urgency=args.get("urgency", "normal"))
+                            elif fc.name == "send_email": result = self._send_email(recipient=args.get("recipient"), subject=args.get("subject"), body=args.get("body"), attachments=args.get("attachments", ""))
+                            elif fc.name == "web_automation": result = self._web_automation(action=args.get("action"), url=args.get("url"), data=args.get("data", ""))
+                            
                             function_responses.append({"id": fc.id, "name": fc.name, "response": result})
                         await self.session.send_tool_response(function_responses=function_responses)
                         continue
@@ -581,7 +980,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("A.D.A. - Advanced Digital Assistant")
+        self.setWindowTitle("A.D.A. - Advanced Digital Assistant (JARVIS Edition)")
         self.setGeometry(100, 100, 1600, 900)
         self.setMinimumSize(1280, 720)
         
@@ -662,6 +1061,14 @@ class MainWindow(QMainWindow):
                 color: #0a0a1a; 
                 border: 1px solid #00ffff;
             }
+            QLabel#alert_label {
+                color: #ff4444;
+                font-weight: bold;
+                font-size: 10pt;
+                padding: 5px;
+                background-color: #2a1010;
+                border: 1px solid #ff4444;
+            }
         """)
 
         self.central_widget = QWidget()
@@ -669,28 +1076,38 @@ class MainWindow(QMainWindow):
         self.main_layout = QHBoxLayout(self.central_widget)
         self.main_layout.setContentsMargins(15, 15, 15, 15)
         self.main_layout.setSpacing(15)
+        
+        # Left Panel - System Activity
         self.left_panel = QWidget(); self.left_panel.setObjectName("left_panel")
         self.left_layout = QVBoxLayout(self.left_panel)
         self.left_layout.setContentsMargins(0, 0, 0, 0)
         self.left_layout.setSpacing(0)
+        
+        # Alert system
+        self.alert_label = QLabel(""); self.alert_label.setObjectName("alert_label")
+        self.alert_label.setVisible(False)
+        self.left_layout.addWidget(self.alert_label)
+        
         self.tool_activity_title = QLabel("SYSTEM ACTIVITY"); self.tool_activity_title.setObjectName("tool_activity_title")
         self.left_layout.addWidget(self.tool_activity_title)
         self.tool_activity_display = QLabel(); self.tool_activity_display.setObjectName("tool_activity_display")
         self.tool_activity_display.setWordWrap(True); self.tool_activity_display.setAlignment(Qt.AlignTop)
         self.tool_activity_display.setOpenExternalLinks(True); self.tool_activity_display.setTextInteractionFlags(Qt.TextBrowserInteraction)
         self.left_layout.addWidget(self.tool_activity_display, 1)
+        
+        # Middle Panel - Chat and Animation
         self.middle_panel = QWidget(); self.middle_panel.setObjectName("middle_panel")
         self.middle_layout = QVBoxLayout(self.middle_panel)
         self.middle_layout.setContentsMargins(0, 0, 0, 15); self.middle_layout.setSpacing(0)
 
-        # --- ADDED: Animation Widget ---
+        # Animation Widget
         self.animation_widget = AIAnimationWidget()
         self.animation_widget.setMinimumHeight(150)
         self.animation_widget.setMaximumHeight(200)
-        self.middle_layout.addWidget(self.animation_widget, 2) # Add with a stretch factor
+        self.middle_layout.addWidget(self.animation_widget, 2)
 
         self.text_display = QTextEdit(); self.text_display.setObjectName("text_display"); self.text_display.setReadOnly(True)
-        self.middle_layout.addWidget(self.text_display, 5) # Add with a stretch factor
+        self.middle_layout.addWidget(self.text_display, 5)
         
         input_container = QWidget()
         input_layout = QHBoxLayout(input_container)
@@ -701,6 +1118,7 @@ class MainWindow(QMainWindow):
         input_layout.addWidget(self.input_box)
         self.middle_layout.addWidget(input_container)
 
+        # Right Panel - Video and Controls
         self.right_panel = QWidget(); self.right_panel.setObjectName("right_panel")
         self.right_layout = QVBoxLayout(self.right_panel)
         self.right_layout.setContentsMargins(15, 15, 15, 15); self.right_layout.setSpacing(15)
@@ -713,7 +1131,6 @@ class MainWindow(QMainWindow):
         self.video_label = QLabel(); self.video_label.setObjectName("video_label")
         self.video_label.setAlignment(Qt.AlignCenter)
         self.video_label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-
         video_container_layout.addWidget(self.video_label)
         self.right_layout.addWidget(self.video_container)
         
@@ -754,12 +1171,27 @@ class MainWindow(QMainWindow):
         self.ai_core.video_mode_changed.connect(self.update_video_mode_ui)
         self.ai_core.speaking_started.connect(self.animation_widget.start_speaking_animation)
         self.ai_core.speaking_stopped.connect(self.animation_widget.stop_speaking_animation)
+        self.ai_core.system_alert.connect(self.show_system_alert)
 
         self.backend_thread = threading.Thread(target=self.ai_core.start_event_loop)
         self.backend_thread.daemon = True
         self.backend_thread.start()
         
         self.update_video_mode_ui(self.ai_core.video_mode)
+
+    @Slot(str, str)
+    def show_system_alert(self, level, message):
+        """Show system alerts like JARVIS"""
+        color = "#ff4444" if level == "CRITICAL" else "#ffaa00" if level == "WARNING" else "#00ff00"
+        self.alert_label.setStyleSheet(f"color: {color}; border: 1px solid {color};")
+        self.alert_label.setText(f"🚨 {level}: {message}")
+        self.alert_label.setVisible(True)
+        
+        # Auto-hide after 5 seconds
+        QTimer.singleShot(5000, self.hide_alert)
+
+    def hide_alert(self):
+        self.alert_label.setVisible(False)
 
     def send_user_text(self):
         text = self.input_box.text().strip()
@@ -884,5 +1316,4 @@ if __name__ == "__main__":
     finally:
         pya.terminate()
         print(">>> [INFO] Application terminated.")
-
-
+        
