@@ -675,25 +675,35 @@ class AI_Core(QObject):
         except Exception as e:
             return {"status": "error", "message": f"Git operation failed: {str(e)}"}
 
-    def _system_notification(self, title, message, urgency="normal"):
-        """Cross-platform desktop notifications"""
-        try:
-            if sys.platform == "win32":
+        def _system_notification(self, title, message, urgency="normal"):
+            try:
+            # Try plyer first (recommended)
                 try:
-                    from win10toast import ToastNotifier
-                    toaster = ToastNotifier()
-                    toaster.show_toast(title, message, duration=5)
+                    from plyer import notification
+                    notification.notify(
+                        title=title,
+                        message=message,
+                        timeout=5,
+                        app_name="A.D.A. Assistant",
+                        app_icon=None  # You can add an icon path here
+                    )
                 except ImportError:
-                    # Fallback for Windows without win10toast
-                    subprocess.Popen(["msg", "*", f"{title}: {message}"])
-            elif sys.platform == "darwin":
-                subprocess.Popen(["osascript", "-e", f'display notification "{message}" with title "{title}"'])
-            else:
-                subprocess.Popen(["notify-send", title, message, f"--urgency={urgency}"])
+                    # Fallback to platform-specific methods
+                    if sys.platform == "win32":
+                        try:
+                            from win10toast import ToastNotifier
+                            toaster = ToastNotifier()
+                            toaster.show_toast(title, message, duration=5)
+                        except ImportError:
+                            subprocess.Popen(["msg", "*", f"{title}: {message}"])
+                    elif sys.platform == "darwin":
+                        subprocess.Popen(["osascript", "-e", f'display notification "{message}" with title "{title}"'])
+                    else:
+                        subprocess.Popen(["notify-send", title, message, f"--urgency={urgency}"])
             
-            return {"status": "success", "message": "Notification sent"}
-        except Exception as e:
-            return {"status": "error", "message": f"Notification failed: {str(e)}"}
+                    return {"status": "success", "message": "Notification sent"}
+            except Exception as e:
+                return {"status": "error", "message": f"Notification failed: {str(e)}"}
 
     def _send_email(self, recipient, subject, body, attachments=""):
         """Send email via SMTP"""
