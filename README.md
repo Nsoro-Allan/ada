@@ -1,36 +1,60 @@
-Advanced Digital Assistant (A.D.A.)
-===================================
+# Advanced Digital Assistant (A.D.A.)
 
 A.D.A. is an advanced, real-time digital assistant built with Google's **Gemini-live-2.5-flash-preview** model. It features a responsive graphical user interface (GUI) using **PySide6**, real-time audio communication, and the ability to process live video from either a webcam or a screen share. A.D.A. is equipped with powerful tools for searching, code execution, and managing your local file system.
 
-  
-FOR FULL VIDEO TUTORIAL: https://www.youtube.com/watch?v=aooylKf-PeA
-  
+## Features
 
-Features
---------
+- 🗣️ **Real-time Conversation**: Seamless, low-latency voice-to-voice interaction powered by Google Gemini and ElevenLabs TTS.
+- 👀 **Live Visual Input**: A.D.A. can see what you see, with the ability to switch between a live **webcam** feed and a **screen share**. This allows it to answer questions about on-screen content, debug code visually, or provide guidance as you work.
+- 🛠️ **Integrated Tooling**: The assistant can perform a variety of actions by invoking powerful tools, including:
 
-*   🗣️ **Real-time Conversation**: Seamless, low-latency voice-to-voice interaction powered by Google Gemini and ElevenLabs TTS.
-    
-*   👀 **Live Visual Input**: A.D.A. can see what you see, with the ability to switch between a live **webcam** feed and a **screen share**. This allows it to answer questions about on-screen content, debug code visually, or provide guidance as you work.
-    
-*   🛠️ **Integrated Tooling**: The assistant can perform a variety of actions by invoking powerful tools, including:
-    
-    *   **Google Search**: For real-time information retrieval.
-        
-    *   **Code Execution**: To run and debug Python code.
-        
-    *   **File System Management**: Create, edit, read, and list files and folders on your computer.
-        
-    *   **System Actions**: Open applications and websites.
-        
-*   🎨 **Dynamic UI**: A responsive and visually appealing GUI built with PySide6, featuring a **3D animated avatar** that pulses when the assistant is speaking.
-    
-*   💻 **Cross-Platform**: Designed to work on Windows, macOS, and Linux.
-    
+  - **Google Search**: For real-time information retrieval.
+  - **Code Execution**: To run and debug Python code.
+  - **File System Management**: Create, edit, read, and list files and folders on your computer.
+  - **System Actions**: Open applications and websites.
 
-Setup
------
+- 🎨 **Dynamic UI**: A responsive and visually appealing GUI built with PySide6, featuring a **3D animated avatar** that pulses when the assistant is speaking.
+- 💻 **Cross-Platform**: Designed to work on Windows, macOS, and Linux.
+
+## Setup
+
+Follow these steps to get A.D.A. up and running on your local machine.
+
+### 1\. Prerequisites
+
+````markdown
+# Advanced Digital Assistant (A.D.A.)
+
+A.D.A. is an advanced, real-time digital assistant built with Google's **Gemini-live-2.5-flash-preview** model. It features a responsive graphical user interface (GUI) using **PySide6**, real-time audio communication, and the ability to process live video from either a webcam or a screen share. A.D.A. is equipped with powerful tools for searching, code execution, and managing your local file system.
+
+## Recent changes
+
+Since the initial release, the project has received several updates and new example/demo scripts. Notable additions:
+
+- Added a `Tutorials/` folder with example scripts showcasing features:
+  - `11-functionCalling.py` — demo showing function-calling patterns with Gemini.
+  - `10-codeExecution.py` — simple code-execution and sandboxing examples.
+  - `9-googleSearch.py` — demonstrates using the assistant to perform web searches.
+  - `8-guiAda.py` — a GUI-focused example extracted from the main app.
+- Integrated ElevenLabs for text-to-speech (TTS) demos.
+- Uses `python-dotenv` (`.env`) for secure local API key configuration.
+- Added `requirements.txt` (root) to simplify dependency installation.
+
+## Features
+
+- 🗣️ **Real-time Conversation**: Seamless, low-latency voice-to-voice interaction powered by Google Gemini and ElevenLabs TTS.
+- 👀 **Live Visual Input**: A.D.A. can see what you see, with the ability to switch between a live **webcam** feed and a **screen share**. This allows it to answer questions about on-screen content, debug code visually, or provide guidance as you work.
+- 🛠️ **Integrated Tooling**: The assistant can perform a variety of actions by invoking powerful tools, including:
+
+  - **Google Search**: For real-time information retrieval.
+  - **Code Execution**: To run and debug Python code.
+  - **File System Management**: Create, edit, read, and list files and folders on your computer.
+  - **System Actions**: Open applications and websites.
+
+- 🎨 **Dynamic UI**: A responsive and visually appealing GUI built with PySide6, featuring a **3D animated avatar** that pulses when the assistant is speaking.
+- 💻 **Cross-Platform**: Designed to work on Windows, macOS, and Linux.
+
+## Setup
 
 Follow these steps to get A.D.A. up and running on your local machine.
 
@@ -38,10 +62,10 @@ Follow these steps to get A.D.A. up and running on your local machine.
 
 Before you begin, ensure you have the following installed:
 
-*   **Python 3.9+**
-*   **Git**: [Download Git](https://git-scm.com/downloads)
-*   **Gemini API Key**: Get your key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-*   **ElevenLabs API Key**: Get your key from the [ElevenLabs website(Affiliate Link Helps Me Out)](https://try.elevenlabs.io/6alaeznm5itg).
+- **Python 3.9+**
+- **Git**: [Download Git](https://git-scm.com/downloads)
+- **Gemini API Key**: Get your key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+- **ElevenLabs API Key**: Get your key from the [ElevenLabs website(Affiliate Link Helps Me Out)](https://try.elevenlabs.io/6alaeznm5itg).
 
 ### 2\. Clone the Repository
 
@@ -57,24 +81,27 @@ cd your-repo-name
 It's highly recommended to use a virtual environment to manage dependencies cleanly.
 
 **On Windows:**
-```bash
-python -m venv venv
-venv\Scripts\activate
+
+```powershell
+python -m venv venv; venv\Scripts\Activate.ps1
 ```
 
 **On macOS/Linux:**
+
 ```bash
 python -m venv venv
 source venv/bin/activate
 ```
 
-### 4\. Install Dependencies
+### 4\. Install Dependencies (recommended)
 
-With your virtual environment active, install all the required Python packages with a single command:
+A `requirements.txt` file is included at the project root. Install dependencies with:
 
-```bash
-pip install google-genai python-dotenv elevenlabs PySide6 opencv-python Pillow numpy websockets pyaudio
+```powershell
+pip install -r requirements.txt
 ```
+
+If you prefer manual installation, the main packages used by the project include: `google-genai`, `python-dotenv`, `elevenlabs`, `PySide6`, `opencv-python`, `Pillow`, `numpy`, `websockets`, `pyaudio`, and `mss`.
 
 > **Note**: On some systems, `PyAudio` can be tricky to install. If you encounter issues, you may need to install system-level development libraries first (e.g., `portaudio`). Please refer to the PyAudio documentation for platform-specific instructions.
 
@@ -89,16 +116,15 @@ GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
 ELEVENLABS_API_KEY="YOUR_ELEVENLABS_API_KEY_HERE"
 ```
 
-> **Important**: Do not share or commit your .env file to GitHub. The project's .gitignore file is configured to ignore it.
+> **Important**: Do not share or commit your `.env` file to GitHub. The project's `.gitignore` file should ignore it.
 
-Usage
------
+## Usage
 
 ### Running the Application
 
 Ensure your virtual environment is active, then run the main Python script:
 
-```bash
+```powershell
 python ada.py
 ```
 
@@ -106,57 +132,62 @@ python ada.py
 
 You can specify the initial video mode when launching the application:
 
-*   \--mode camera: Starts with the webcam feed active.
-    
-*   \--mode screen: Starts with screen sharing active.
-    
-*   \--mode none: Starts without a video feed (default).
-    
+- `--mode camera`: Starts with the webcam feed active.
+- `--mode screen`: Starts with screen sharing active.
+- `--mode none`: Starts without a video feed (default).
 
-**Example**:
+Example:
 
-```bash
+```powershell
 python ada.py --mode camera
 ```
 
+### Tutorials and examples
+
+Several example scripts live in the `Tutorials/` folder. To run an example directly:
+
+```powershell
+python Tutorials\11-functionCalling.py
+python Tutorials\10-codeExecution.py
+```
+
+These scripts are useful references for specific features (function-calling, code execution, GUI examples, and searching).
+
 ### Interacting with A.D.A.
 
-*   **Voice**: The application listens in real-time. Simply speak to the assistant to begin a conversation.
-    
-*   **Text**: Use the input box to type commands or questions.
-    
-*   **Video Mode Buttons**: Use the "WEBCAM", "SCREEN", and "OFFLINE" buttons on the right panel to change the visual input source.
-    
+- **Voice**: The application listens in real-time. Simply speak to the assistant to begin a conversation.
+- **Text**: Use the input box to type commands or questions.
+- **Video Mode Buttons**: Use the "WEBCAM", "SCREEN", and "OFFLINE" buttons on the right panel to change the visual input source.
 
 A.D.A. can answer questions, run code, manage files, open applications, and analyze content on your screen.
 
-Troubleshooting
----------------
+## Troubleshooting
 
 If you encounter any issues, here are some common problems and their solutions:
 
 ### 1. API Key Errors
 
-*   **Symptom**: The application closes immediately after starting, with an error message like `Error: GEMINI_API_KEY not found`.
-*   **Solution**:
-    1.  **Check `.env` file location**: Ensure your `.env` file is in the root directory of the project, alongside `ada.py`.
-    2.  **Verify Key Names**: Make sure the variable names in your `.env` file are exactly `GEMINI_API_KEY` and `ELEVENLABS_API_KEY`.
-    3.  **Check Key Values**: Confirm that you have correctly pasted your API keys without any extra spaces or characters.
+- **Symptom**: The application closes immediately after starting, with an error message like `Error: GEMINI_API_KEY not found`.
+- **Solution**:
+  1.  **Check `.env` file location**: Ensure your `.env` file is in the root directory of the project, alongside `ada.py`.
+  2.  **Verify Key Names**: Make sure the variable names in your `.env` file are exactly `GEMINI_API_KEY` and `ELEVENLABS_API_KEY`.
+  3.  **Check Key Values**: Confirm that you have correctly pasted your API keys without any extra spaces or characters.
 
 ### 2. Microphone Not Working
 
-*   **Symptom**: A.D.A. does not respond to your voice commands.
-*   **Solution**:
-    1.  **Grant Permissions**: Your operating system may be blocking microphone access.
-        *   **Windows**: Go to `Settings > Privacy & security > Microphone` and ensure "Let desktop apps access your microphone" is enabled.
-        *   **macOS**: Go to `System Settings > Privacy & Security > Microphone` and make sure your terminal or code editor has permission.
-    2.  **Set Default Device**: The application uses your system's default input device. Check your OS sound settings to ensure the correct microphone is selected as the default.
-    3.  **PyAudio Installation**: If you see errors related to `PyAudio` or `PortAudio` on startup, you may need to reinstall it or install its system dependencies as mentioned in the setup guide.
+- **Symptom**: A.D.A. does not respond to your voice commands.
+- **Solution**:
+  1.  **Grant Permissions**: Your operating system may be blocking microphone access.
+      - **Windows**: Go to `Settings > Privacy & security > Microphone` and ensure "Let desktop apps access your microphone" is enabled.
+      - **macOS**: Go to `System Settings > Privacy & Security > Microphone` and make sure your terminal or code editor has permission.
+  2.  **Set Default Device**: The application uses your system's default input device. Check your OS sound settings to ensure the correct microphone is selected as the default.
+  3.  **PyAudio Installation**: If you see errors related to `PyAudio` or `PortAudio` on startup, you may need to reinstall it or install its system dependencies as mentioned in the setup guide.
 
 ### 3. Video Feed Not Displaying
 
-*   **Symptom**: The video panel on the right is black when "WEBCAM" mode is active.
-*   **Solution**:
-    1.  **Grant Permissions**: Just like the microphone, your OS may be blocking camera access. Check your system's privacy settings for the camera.
-    2.  **Camera In Use**: Make sure no other application (like Zoom, Teams, OBS, etc.) is currently using your webcam.
-    3.  **Correct Device**: The script defaults to the first available camera (index 0). If you have multiple cameras, you may need to adjust the `cv2.VideoCapture(0)` line in `ada.py` to use a different index (e.g., `cv2.VideoCapture(1)`).
+- **Symptom**: The video panel on the right is black when "WEBCAM" mode is active.
+- **Solution**:
+  1.  **Grant Permissions**: Just like the microphone, your OS may be blocking camera access. Check your system's privacy settings for the camera.
+  2.  **Camera In Use**: Make sure no other application (like Zoom, Teams, OBS, etc.) is currently using your webcam.
+  3.  **Correct Device**: The script defaults to the first available camera (index 0). If you have multiple cameras, you may need to adjust the `cv2.VideoCapture(0)` line in `ada.py` to use a different index (e.g., `cv2.VideoCapture(1)`).
+````

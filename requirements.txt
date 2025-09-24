@@ -1,0 +1,19 @@
+# Project dependencies for A.D.A. (Advanced Digital Assistant)
+# These were inferred from imports across the repository's Python files.
+# Pin versions as needed for your environment. The listed packages are the
+# minimum set to get the app running; add extras if you use optional features.
+
+google-genai
+python-dotenv
+elevenlabs
+PySide6
+opencv-python
+Pillow
+numpy
+websockets
+pyaudio
+mss
+
+# Optional / platform-specific (uncomment if needed)
+# sounddevice
+# soundfile
