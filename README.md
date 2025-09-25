@@ -158,8 +158,28 @@ These scripts are useful references for specific features (function-calling, cod
 - **Voice**: The application listens in real-time. Simply speak to the assistant to begin a conversation.
 - **Text**: Use the input box to type commands or questions.
 - **Video Mode Buttons**: Use the "WEBCAM", "SCREEN", and "OFFLINE" buttons on the right panel to change the visual input source.
+- **Real-Time Clock**: The right panel now displays a live clock showing the current time and date.
 
-A.D.A. can answer questions, run code, manage files, open applications, and analyze content on your screen.
+A.D.A. can answer questions, run code, manage files, open applications, analyze content on your screen, and provide real-time date and time information.
+
+### New Time-Related Features
+
+A.D.A. now has comprehensive time awareness capabilities:
+
+- **Live Clock Display**: A real-time clock in the GUI that updates every second
+- **Time Queries**: Ask questions like "What time is it?", "What's today's date?", or "Give me a timestamp"
+- **Multiple Formats**: Get time in various formats (full, time-only, date-only, timestamp, ISO format)
+- **Timezone Support**: Local time and UTC support
+- **Custom Formatting**: Use custom date/time format strings
+- **Additional Metadata**: Day of year, week number, weekday, month, and year information
+
+Example time-related queries:
+
+- "What time is it right now?"
+- "Show me today's date"
+- "What's the current timestamp?"
+- "Give me the time in ISO format"
+- "What day of the year is it?"
 
 ## Troubleshooting
 

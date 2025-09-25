@@ -16,6 +16,8 @@ import math
 import shutil
 import platform
 import psutil
+import datetime
+import time
 
 # --- PySide6 GUI Imports ---
 from PySide6.QtWidgets import (QApplication, QMainWindow, QTextEdit, QLabel,
@@ -390,6 +392,19 @@ class AI_Core(QObject):
                 "required": ["action", "url"]
             }
         }
+
+        get_current_time = {
+            "name": "get_current_time",
+            "description": "Gets the current date and time from the user's computer in various formats.",
+            "parameters": {
+                "type": "OBJECT",
+                "properties": {
+                    "format": {"type": "STRING", "description": "Format type: 'full', 'time', 'date', 'timestamp', 'iso', 'custom'"},
+                    "timezone": {"type": "STRING", "description": "Timezone (e.g., 'UTC', 'local', 'US/Eastern')"},
+                    "custom_format": {"type": "STRING", "description": "Custom strftime format string (e.g., '%Y-%m-%d %H:%M:%S')"}
+                }
+            }
+        }
         
         tools = [
             {'google_search': {}}, 
@@ -398,7 +413,8 @@ class AI_Core(QObject):
                 create_folder, create_file, edit_file, list_files, read_file, 
                 open_application, open_website, delete_file, search_files, 
                 rename_file, system_info, process_management, open_in_editor,
-                git_operations, system_notification, send_email, web_automation
+                git_operations, system_notification, send_email, web_automation,
+                get_current_time
             ]}
         ]
         
@@ -414,6 +430,7 @@ class AI_Core(QObject):
             3. AUTOMATION: File management, web tasks, and system control
             4. CREATION: Image generation and document processing
             5. COMMUNICATION: Email and notifications
+            6. TIME AWARENESS: Real-time clock access for scheduling and time-based tasks
 
             BE PROACTIVE: Monitor system health, suggest optimizations, anticipate needs.
             BE PRECISE: Execute commands accurately with proper error handling.
@@ -426,6 +443,11 @@ class AI_Core(QObject):
             - Send communications and desktop notifications
             - Perform advanced file operations and content searching
             - Automate web browsing and form filling
+            - Access real-time date and time information from the user's computer
+            - Handle time-based scheduling and reminders
+
+            IMPORTANT: You have access to the current real-time date and time through the get_current_time function. 
+            Use this whenever users ask about time, dates, scheduling, or need time-aware responses.
 
             Act like a true intelligent assistant - be conversational but highly capable.
             """,
@@ -754,6 +776,64 @@ class AI_Core(QObject):
         except Exception as e:
             return {"status": "error", "message": f"Web automation failed: {str(e)}"}
 
+    def _get_current_time(self, format="full", timezone="local", custom_format=""):
+        """Get current date and time in various formats"""
+        try:
+            # Get current time
+            if timezone == "local" or timezone == "":
+                current_time = datetime.datetime.now()
+                tz_info = "Local Time"
+            elif timezone.upper() == "UTC":
+                try:
+                    # Use the new recommended method for UTC
+                    current_time = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+                except AttributeError:
+                    # Fallback for older Python versions
+                    current_time = datetime.datetime.utcnow()
+                tz_info = "UTC"
+            else:
+                # For other timezones, we'd need pytz library
+                # For now, default to local time
+                current_time = datetime.datetime.now()
+                tz_info = f"Local Time (requested: {timezone})"
+            
+            # Format the time based on requested format
+            if format == "full":
+                formatted_time = current_time.strftime("%A, %B %d, %Y at %I:%M:%S %p")
+            elif format == "time":
+                formatted_time = current_time.strftime("%I:%M:%S %p")
+            elif format == "date":
+                formatted_time = current_time.strftime("%A, %B %d, %Y")
+            elif format == "timestamp":
+                formatted_time = str(int(current_time.timestamp()))
+            elif format == "iso":
+                formatted_time = current_time.isoformat()
+            elif format == "custom" and custom_format:
+                formatted_time = current_time.strftime(custom_format)
+            else:
+                # Default full format
+                formatted_time = current_time.strftime("%A, %B %d, %Y at %I:%M:%S %p")
+            
+            # Additional time information
+            day_of_year = current_time.timetuple().tm_yday
+            week_number = current_time.isocalendar()[1]
+            
+            return {
+                "status": "success",
+                "message": f"Current time retrieved successfully",
+                "formatted_time": formatted_time,
+                "timezone": tz_info,
+                "raw_datetime": current_time.isoformat(),
+                "timestamp": int(current_time.timestamp()),
+                "day_of_year": day_of_year,
+                "week_number": week_number,
+                "weekday": current_time.strftime("%A"),
+                "month": current_time.strftime("%B"),
+                "year": current_time.year
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Time retrieval failed: {str(e)}"}
+
     @Slot(str)
     def set_video_mode(self, mode):
         """Sets the video source and notifies the GUI."""
@@ -847,6 +927,7 @@ class AI_Core(QObject):
                             elif fc.name == "system_notification": result = self._system_notification(title=args.get("title"), message=args.get("message"), urgency=args.get("urgency", "normal"))
                             elif fc.name == "send_email": result = self._send_email(recipient=args.get("recipient"), subject=args.get("subject"), body=args.get("body"), attachments=args.get("attachments", ""))
                             elif fc.name == "web_automation": result = self._web_automation(action=args.get("action"), url=args.get("url"), data=args.get("data", ""))
+                            elif fc.name == "get_current_time": result = self._get_current_time(format=args.get("format", "full"), timezone=args.get("timezone", "local"), custom_format=args.get("custom_format", ""))
                             
                             function_responses.append({"id": fc.id, "name": fc.name, "response": result})
                         await self.session.send_tool_response(function_responses=function_responses)
@@ -1133,6 +1214,23 @@ class MainWindow(QMainWindow):
         self.right_layout = QVBoxLayout(self.right_panel)
         self.right_layout.setContentsMargins(15, 15, 15, 15); self.right_layout.setSpacing(15)
         
+        # Real-time clock display
+        self.clock_label = QLabel()
+        self.clock_label.setObjectName("clock_label")
+        self.clock_label.setAlignment(Qt.AlignCenter)
+        self.clock_label.setStyleSheet("""
+            QLabel#clock_label {
+                color: #00ffff;
+                font-weight: bold;
+                font-size: 14pt;
+                padding: 10px;
+                background-color: #1a2035;
+                border: 1px solid #00a1c1;
+                border-radius: 5px;
+            }
+        """)
+        self.right_layout.addWidget(self.clock_label)
+        
         self.video_container = QWidget()
         self.video_container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         video_container_layout = QVBoxLayout(self.video_container)
@@ -1182,6 +1280,12 @@ class MainWindow(QMainWindow):
         self.ai_core.speaking_started.connect(self.animation_widget.start_speaking_animation)
         self.ai_core.speaking_stopped.connect(self.animation_widget.stop_speaking_animation)
         self.ai_core.system_alert.connect(self.show_system_alert)
+
+        # Initialize clock timer
+        self.clock_timer = QTimer()
+        self.clock_timer.timeout.connect(self.update_clock)
+        self.clock_timer.start(1000)  # Update every second
+        self.update_clock()  # Initial update
 
         self.backend_thread = threading.Thread(target=self.ai_core.start_event_loop)
         self.backend_thread.daemon = True
@@ -1307,6 +1411,14 @@ class MainWindow(QMainWindow):
             self.video_label.setPixmap(scaled_pixmap)
         else:
             self.video_label.clear()
+
+    def update_clock(self):
+        """Update the real-time clock display"""
+        current_time = datetime.datetime.now()
+        time_str = current_time.strftime("%H:%M:%S")
+        date_str = current_time.strftime("%A, %B %d, %Y")
+        
+        self.clock_label.setText(f"{time_str}\n{date_str}")
             
     def closeEvent(self, event):
         self.ai_core.stop()
